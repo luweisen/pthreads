@@ -88,6 +88,21 @@ static zend_object_iterator_funcs pthreads_object_iterator_funcs = {
     (void (*)(zend_object_iterator *)) 				pthreads_object_iterator_rewind
 };
 
+/* {{{ */
+pthreads_object_t* pthreads_object_init(zend_class_entry *ce) {
+	zval object;
+	object_init_ex(&object, ce);
+
+	return PTHREADS_FETCH_FROM(Z_OBJ(object));
+} /* }}} */
+
+/* {{{ */
+void pthreads_ptr_dtor(pthreads_object_t* threaded) {
+	zval obj;
+	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
+	zval_ptr_dtor(&obj);
+} /* }}} */
+
 zend_object_iterator* pthreads_object_iterator_create(zend_class_entry *ce, zval *object, int by_ref) {
     pthreads_iterator_t *iterator;
 
@@ -182,6 +197,78 @@ zend_object* pthreads_socket_ctor(zend_class_entry *entry) {
 } /* }}} */
 
 /* {{{ */
+zend_object* pthreads_stream_ctor(zend_class_entry *entry) {
+	pthreads_object_t* threaded = pthreads_globals_object_alloc(
+		sizeof(pthreads_object_t) + zend_object_properties_size(entry));
+
+	threaded->scope = PTHREADS_SCOPE_STREAM;
+	pthreads_base_ctor(threaded, entry);
+	threaded->std.handlers = &pthreads_stream_handlers;
+
+	return &threaded->std;
+} /* }}} */
+
+/* {{{ */
+zend_object* pthreads_stream_context_ctor(zend_class_entry *entry) {
+	pthreads_object_t* threaded = pthreads_globals_object_alloc(
+		sizeof(pthreads_object_t) + zend_object_properties_size(entry));
+
+	threaded->scope = PTHREADS_SCOPE_STREAM_CONTEXT;
+	pthreads_base_ctor(threaded, entry);
+	threaded->std.handlers = &pthreads_socket_handlers;
+
+	return &threaded->std;
+} /* }}} */
+
+/* {{{ */
+zend_object* pthreads_stream_filter_ctor(zend_class_entry *entry) {
+	pthreads_object_t* threaded = pthreads_globals_object_alloc(
+		sizeof(pthreads_object_t) + zend_object_properties_size(entry));
+
+	threaded->scope = PTHREADS_SCOPE_STREAM_FILTER;
+	pthreads_base_ctor(threaded, entry);
+	threaded->std.handlers = &pthreads_handlers;
+
+	return &threaded->std;
+} /* }}} */
+
+/* {{{ */
+zend_object* pthreads_stream_wrapper_ctor(zend_class_entry *entry) {
+	pthreads_object_t* threaded = pthreads_globals_object_alloc(
+		sizeof(pthreads_object_t) + zend_object_properties_size(entry));
+
+	threaded->scope = PTHREADS_SCOPE_STREAM_WRAPPER;
+	pthreads_base_ctor(threaded, entry);
+	threaded->std.handlers = &pthreads_stream_handlers;
+
+	return &threaded->std;
+} /* }}} */
+
+/* {{{ */
+zend_object* pthreads_stream_bucket_ctor(zend_class_entry *entry) {
+	pthreads_object_t* threaded = pthreads_globals_object_alloc(
+		sizeof(pthreads_object_t) + zend_object_properties_size(entry));
+
+	threaded->scope = PTHREADS_SCOPE_STREAM_BUCKET;
+	pthreads_base_ctor(threaded, entry);
+	threaded->std.handlers = &pthreads_handlers;
+
+	return &threaded->std;
+} /* }}} */
+
+/* {{{ */
+zend_object* pthreads_stream_brigade_ctor(zend_class_entry *entry) {
+	pthreads_object_t* threaded = pthreads_globals_object_alloc(
+		sizeof(pthreads_object_t) + zend_object_properties_size(entry));
+
+	threaded->scope = PTHREADS_SCOPE_STREAM_BRIGADE;
+	pthreads_base_ctor(threaded, entry);
+	threaded->std.handlers = &pthreads_stream_handlers;
+
+	return &threaded->std;
+} /* }}} */
+
+/* {{{ */
 int pthreads_threaded_serialize(zval *object, unsigned char **buffer, size_t *buflen, zend_serialize_data *data) {
 	pthreads_object_t *address = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 #ifdef _WIN64
@@ -242,15 +329,29 @@ int pthreads_connect(pthreads_object_t* source, pthreads_object_t* destination) 
 	if (source && destination) {
 		pthreads_ident_t destCreator = destination->creator;
 
+		printf("pthreads_connect");
+
 		if (PTHREADS_IS_NOT_CONNECTION(destination)) {
-			if (!PTHREADS_IS_SOCKET(destination)) {
+			if(PTHREADS_IS_STREAMS(destination)) {
+
+				if(PTHREADS_IS_STREAM_CONTEXT(destination)) {
+					pthreads_stream_context_free(PTHREADS_FETCH_STREAMS_CONTEXT(destination));
+				} else if(PTHREADS_IS_STREAM_WRAPPER(destination)) {
+					pthreads_stream_wrapper_free(PTHREADS_FETCH_STREAMS_WRAPPER(destination));
+				} else if (PTHREADS_IS_STREAM_BRIGADE(destination)) {
+					pthreads_stream_bucket_brigade_free(PTHREADS_FETCH_STREAMS_BRIGADE(destination));
+				}
+				pthreads_streams_free(destination->store.streams);
+			}
+
+			if (PTHREADS_IS_SOCKET(destination)) {
+				pthreads_socket_free(destination->store.sock, 0);
+			} else {
 				pthreads_store_free(destination->store.props);
 				if (PTHREADS_IS_WORKER(destination)) {
 					pthreads_stack_free(destination->stack);
 				}
 				free(destination->running);
-			} else {
-				pthreads_socket_free(destination->store.sock, 0);
 			}
 
 			pthreads_monitor_free(destination->monitor);
@@ -303,32 +404,83 @@ static void pthreads_base_ctor(pthreads_object_t* base, zend_class_entry *entry)
 	zend_object_std_init(&base->std, entry);
 	object_properties_init(&base->std, entry);
 
+	printf("pthreads_base_ctor %p \n", &base->std);
+
 	base->creator.ls = TSRMLS_CACHE;
 	base->creator.id = pthreads_self();
 	base->options = PTHREADS_INHERIT_ALL;
 
 	if (PTHREADS_IS_NOT_CONNECTION(base)) {
 		base->monitor = pthreads_monitor_alloc();
-		if (!PTHREADS_IS_SOCKET(base)) {
-			base->store.props   = pthreads_store_alloc();
+
+		if (PTHREADS_IS_STREAMS(base)) {
+			base->store.streams = pthreads_streams_alloc();
+
+			printf("creating stream base(%p) \n", base->store.streams);
+
+			if (PTHREADS_IS_STREAM_CONTEXT(base)) {
+				PTHREADS_FETCH_STREAMS_CONTEXT(base) = pthreads_stream_context_alloc();
+			} else if (PTHREADS_IS_STREAM_WRAPPER(base)) {
+				PTHREADS_FETCH_STREAMS_WRAPPER(base) = pthreads_stream_wrapper_alloc();
+			} else if (PTHREADS_IS_STREAM_BRIGADE(base)) {
+				PTHREADS_FETCH_STREAMS_BRIGADE(base) = pthreads_stream_bucket_brigade_alloc();
+			}
+		}
+
+		if (PTHREADS_IS_SOCKET(base)) {
+			base->store.sock = pthreads_socket_alloc();
+		} else {
+			base->store.props = pthreads_store_alloc();
 			base->running = malloc(sizeof(pthreads_object_t**));
 
 			if (PTHREADS_IS_WORKER(base)) {
 				base->stack = pthreads_stack_alloc(base->monitor);
+			} else if (PTHREADS_IS_STREAM_BUCKET(base)) {
+
 			}
 			pthreads_base_init(base);
-		} else {
-			base->store.sock = pthreads_socket_alloc();
 		}
 	}
 } /* }}} */
 
 /* {{{ */
 void pthreads_base_free(zend_object *object) {
+
+	printf("pthreads_base_free %p \n", object);
+
 	pthreads_object_t* base = PTHREADS_FETCH_FROM(object);
 
 	if (PTHREADS_IS_NOT_CONNECTION(base)) {
-		if (!PTHREADS_IS_SOCKET(base)) {
+		if(PTHREADS_IS_STREAMS(base)) {
+
+			printf("pthreads_base_free base(%p) \n", base->store.streams);
+
+			if(PTHREADS_IS_STREAM(base)) {
+				pthreads_stream * stream = PTHREADS_FETCH_STREAMS_STREAM(base);
+
+				printf("pthreads_base_free free stream(%p) base(%p)  \n", stream, base->store.streams);
+
+				if(PTHREADS_IS_VALID_STREAM(stream)) {
+					pthreads_stream_close(base, PTHREADS_STREAM_FREE_CLOSE);
+				}
+				pthreads_stream_free(base);
+			} else if(PTHREADS_IS_STREAM_CONTEXT(base) && PTHREADS_FETCH_STREAMS_CONTEXT(base)) {
+				pthreads_stream_context_free(PTHREADS_FETCH_STREAMS_CONTEXT(base));
+			} else if(PTHREADS_IS_STREAM_FILTER(base) && PTHREADS_FETCH_STREAMS_FILTER(base)) {
+				pthreads_stream_filter_free(PTHREADS_FETCH_STREAMS_FILTER(base), base);
+			} else if(PTHREADS_IS_STREAM_BUCKET(base) && PTHREADS_FETCH_STREAMS_BUCKET(base)) {
+				pthreads_stream_bucket_free(PTHREADS_FETCH_STREAMS_BUCKET(base));
+			} else if (PTHREADS_IS_STREAM_WRAPPER(base) && PTHREADS_FETCH_STREAMS_WRAPPER(base)) {
+				pthreads_stream_wrapper_free(PTHREADS_FETCH_STREAMS_WRAPPER(base));
+			} else if (PTHREADS_IS_STREAM_BRIGADE(base) && PTHREADS_FETCH_STREAMS_BRIGADE(base)) {
+				pthreads_stream_bucket_brigade_free(PTHREADS_FETCH_STREAMS_BRIGADE(base));
+			}
+			pthreads_streams_free(base->store.streams);
+		}
+
+		if (PTHREADS_IS_SOCKET(base)) {
+			pthreads_socket_free(base->store.sock, 1);
+		} else {
 			if ((PTHREADS_IS_THREAD(base)||PTHREADS_IS_WORKER(base)) &&
 				pthreads_monitor_check(base->monitor, PTHREADS_MONITOR_STARTED) &&
 				!pthreads_monitor_check(base->monitor, PTHREADS_MONITOR_JOINED)) {
@@ -346,8 +498,6 @@ void pthreads_base_free(zend_object *object) {
 			if (base->running) {
 				free(base->running);
 			}
-		} else {
-			pthreads_socket_free(base->store.sock, 1);
 		}
 
 		pthreads_monitor_free(base->monitor);

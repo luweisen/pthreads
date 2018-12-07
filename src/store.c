@@ -105,7 +105,7 @@ static inline zend_bool pthreads_store_coerce(HashTable *table, zval *key, zval 
 }
 
 /* {{{ */
-static inline zend_bool pthreads_store_is_immutable(zval *object, zval *key) {	
+static inline zend_bool pthreads_store_is_immutable(zval *object, zval *key) {
 	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	pthreads_storage *storage;
 
@@ -133,9 +133,9 @@ static inline zend_bool pthreads_store_is_immutable(zval *object, zval *key) {
 
 /* {{{ */
 int pthreads_store_delete(zval *object, zval *key) {
+	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	int result = FAILURE;
 	zval member, *property = NULL;
-	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	zend_bool coerced = pthreads_store_coerce(threaded->store.props, key, &member);	
 
 	rebuild_object_properties(&threaded->std);
@@ -164,9 +164,9 @@ int pthreads_store_delete(zval *object, zval *key) {
 
 /* {{{ */
 zend_bool pthreads_store_isset(zval *object, zval *key, int has_set_exists) {
+	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	zend_bool isset = 0;
 	zval member;
-	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	zend_bool coerced = pthreads_store_coerce(threaded->store.props, key, &member);
 
 	if (pthreads_monitor_lock(threaded->monitor)) {
@@ -230,9 +230,9 @@ zend_bool pthreads_store_isset(zval *object, zval *key, int has_set_exists) {
 
 /* {{{ */
 int pthreads_store_read(zval *object, zval *key, int type, zval *read) {
+	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	int result = FAILURE;
 	zval member, *property = NULL;
-	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	zend_bool coerced = pthreads_store_coerce(threaded->store.props, key, &member);
 
 	rebuild_object_properties(&threaded->std);
@@ -249,7 +249,7 @@ int pthreads_store_read(zval *object, zval *key, int type, zval *read) {
 				storage = zend_hash_index_find_ptr(threaded->store.props, Z_LVAL(member));
 			} else storage = zend_hash_find_ptr(threaded->store.props, Z_STR(member));
 
-			if (storage && storage->type == IS_PTHREADS) {
+			if (storage && (storage->type == IS_PTHREADS || storage->type == IS_MAP)) {
 				pthreads_object_t* threadedStorage = PTHREADS_FETCH_FROM(storage->data);
 				pthreads_object_t *threadedProperty = PTHREADS_FETCH_FROM(Z_OBJ_P(property));
 
@@ -307,11 +307,10 @@ int pthreads_store_read(zval *object, zval *key, int type, zval *read) {
 
 /* {{{ */
 int pthreads_store_write(zval *object, zval *key, zval *write) {
+	pthreads_object_t *threaded = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	int result = FAILURE;
 	pthreads_storage *storage;
 	zval vol, member, *property = NULL, *read = NULL;
-	pthreads_object_t *threaded = 
-		PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	zend_bool coerced = 0;
 
 	if (Z_TYPE_P(write) == IS_ARRAY) {
@@ -648,6 +647,10 @@ pthreads_storage* pthreads_store_create(zval *unstore, zend_bool complex){
 			if (instanceof_function(Z_OBJCE_P(unstore), pthreads_threaded_entry)) {
 				storage->type = IS_PTHREADS;
 				storage->data = Z_OBJ_P(unstore);
+
+				if (instanceof_function(Z_OBJCE_P(unstore), pthreads_volatile_map_entry)) {
+					storage->type = IS_MAP;
+				}
 				break;
 			}
 
@@ -731,6 +734,7 @@ int pthreads_store_convert(pthreads_storage *storage, zval *pzval){
 			efree(name);
 		} break;
 
+		case IS_MAP:
 		case IS_PTHREADS: {
 			pthreads_object_t* threaded = PTHREADS_FETCH_FROM(storage->data);
 

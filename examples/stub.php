@@ -696,3 +696,202 @@ class Socket extends \Threaded
 
     public static function strerror(int $error) : ?string{}
 }
+
+class Streams
+{
+	public static function getFilters() : array {}
+	
+	public static function getTransports() : array {}
+	
+	public static function getWrappers() : array {}
+	
+	public static function registerWrapper(string $protocol, string $classname, int $flags = 0) : bool {}
+	
+	public static function unregisterWrapper(string $protocol) : bool {}
+	
+	public static function registerFilter(string $filtername, string $classname) : bool {}
+}
+
+class Stream extends \Threaded
+{
+	public const PTHREADS_STREAM_COPY_ALL = -1;
+	
+	public function copyToStream(Stream $dest, int $maxlength = -1, int $offset = 0) : int {} 
+	
+	public function appendFilter(string $filtername, int $read_write = null, $params = null) : ?StreamFilter {}
+	
+	public function prependFilter(string $filtername, int $read_write = null, $params = null) : ?StreamFilter {}
+	
+	public function getContents(int $maxlength = -1, int $offset = -1) : ?string {}
+	
+	public function getLine(int $length, string $ending = null) : ?string {}
+	
+	public function getMetaData() : array {}
+	
+	public function isLocal(string $stream_or_url) : bool {} // ??? implement ???
+	
+	public function isATTY() : bool {}
+	
+	public function resolveIncludePath(string $filename) : ?string {}
+	
+	public static function select(array &$read, array &$write, array &$except, int $tv_sec, int $tv_usec = 0) {}
+	
+	public function setBlocking(bool $mode) : bool {}
+	
+	public function setChunkSize(int $chunk_size) : int {}
+	
+	public function setReadBuffer(int $buffer) : int {}
+	
+	public function setTimeout(int $seconds, int $microseconds = 0) : bool {}
+	
+	public function setWriteBuffer(int $buffer) : int {}
+	
+	public function supportsLock() : bool {}
+	
+	public static function fromResource($stream) : Stream {}
+}
+
+class StreamContext extends \Threaded
+{
+	public function __construct(array $options = null, array $params = null) {}
+	
+	public function getOptions() : array {}
+	
+	public function getParams() : array {}
+	
+	public function setOption(string $wrapper, string $option, $value) : bool {}
+	
+	public function setOptions(array $options) : bool {}
+	
+	public function setParams(array $params) : bool {}
+	
+	public static function getDefault(array $options = null) : StreamContext {}
+	
+	public static function setDefault(array $options) : StreamContext {}
+}
+
+class StreamWrapper extends \Threaded
+{
+	
+}
+
+class StreamFilter extends \Volatile
+{	
+	public function remove() {}
+}
+
+class StreamBucket extends \Volatile
+{
+	/**
+	 * @var string|null
+	 */
+	public $data;
+	
+	/**
+	 * @var long
+	 */
+	public $datalen;
+	
+	public function __construct(string $buffer) {}
+}
+
+class StreamBucketBrigade extends \Threaded
+{
+	public function append(StreamBucket $bucket) : void {}
+	
+	public function prepend(StreamBucket $bucket) : void {}
+	
+	public function fetch() : ?StreamBucket {}
+	
+	/**
+	 * Alias of self::fetch()
+	 * @return StreamBucket|NULL
+	 */
+	public function makeWriteable() : ?StreamBucket {}
+}
+
+class pthreads_user_filter extends \Volatile
+{
+	public const PTHREADS_SFS_PASS_ON = 2;
+	public const PTHREADS_SFS_FEED_ME = 1;
+	public const PTHREADS_SFS_ERR_FATAL = 0;
+	
+	public const PTHREADS_SFS_FLAG_NORMAL = 0;
+	public const PTHREADS_SFS_FLAG_FLUSH_INC = 1;
+	public const PTHREADS_SFS_FLAG_FLUSH_CLOSE = 2;
+	
+	/**
+	 * @var string
+	 */
+	public $filtername;
+
+	/**
+	 * @var string|null
+	 */
+	public $params;
+	
+	/** 
+	 * @var Stream|null
+	 * @optional
+	 */
+	public $stream;
+	
+	public function onClose() {}
+	
+	public function onCreate() {}
+	
+	public function filter(\StreamBucketBrigade $in, \StreamBucketBrigade $out, int &$consumed, int $closing) {}
+}
+
+class SocketStream extends \Stream
+{
+	public static function createClient(string $remote_socket, int &$errno = null, string &$errstr = null, 
+			float $timeout = ini_get("default_socket_timeout"), int $flags = \Stream::STREAM_CLIENT_CONNECT, \StreamContext $context = null) : ?\SocketStream {}
+	
+	public static function createServer(string $local_socket, int &$errno = null, string &$errstr = null, 
+			int $flags = \Stream::STREAM_SERVER_BIND | \Stream::STREAM_SERVER_LISTEN, \StreamContext $context = null) : ?\SocketStream {}
+			
+	public static function createPair(int $domain, int $type, int $protocol) : ?array {}
+	
+	public function accept(float $timeout = ini_get("default_socket_timeout"), string &$peername = null) : ?\SocketStream {}
+	
+	public function enableCrypto(bool $enable, int $crypto_type = null, \Stream $session_stream = null) {}
+	
+	public function getName(bool $want_peer) : string {}
+	
+	public function recvfrom(int $length, int $flags = 0, string &$address = null) : ?string {}
+	
+	public function sendto(string $data, int $flags = 0, string $address = null) : int {}
+	
+	public function shutdown(int $how) : bool {}
+}
+
+class FileStream extends \Stream
+{
+	public function lock(int $operation, int &$wouldblock) : bool {}
+}
+
+class File extends \Threaded
+{
+	public static function open() : \FileStream {}
+	
+	public static function popen() : \FileStream {}
+	
+	/**
+	 * @param string $filename
+	 * @param bool $use_include_path optional
+	 * @return array|NULL
+	 */
+	public static function getMetaTags(string $filename, bool $use_include_path) : ?array {}
+	
+	/**
+	 * @param string $filename
+	 * @param bool $use_include_path optional
+	 * @param StreamContext $context optional
+	 * @param int $offset optional
+	 * @param int $maxlen optional
+	 * @return string|NULL
+	 */
+	public static function getContents(string $filename, bool $use_include_path = false, \StreamContext $context = null, int $offset = 0, int $maxlen = -1) : ?string {}
+	
+}

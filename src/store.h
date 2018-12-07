@@ -24,19 +24,7 @@
 
 #define IS_CLOSURE  (IS_PTR + 1)
 #define IS_PTHREADS (IS_PTR + 2)
-
-typedef HashTable pthreads_store_t;
-
-typedef struct _pthreads_storage {
-	zend_uchar 	type;
-	size_t 	length;
-	zend_bool 	exists;
-	union {
-		zend_long   lval;
-		double     dval;
-	} simple;
-	void    	*data;
-} pthreads_storage;
+#define IS_MAP      (IS_PTR + 3)
 
 pthreads_store_t* pthreads_store_alloc();
 void pthreads_store_sync(zval *object);

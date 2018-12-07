@@ -64,7 +64,7 @@ HashTable* pthreads_read_debug(PTHREADS_READ_DEBUG_PASSTHRU_D) {
 	zend_hash_init(table, 8, NULL, ZVAL_PTR_DTOR, 0);
 	*is_temp = 1;
 
-	if (!PTHREADS_IS_SOCKET(threaded)) {
+	if (!PTHREADS_IS_SOCKET(threaded) && !PTHREADS_IS_STREAM(threaded) && !PTHREADS_IS_STREAM_CONTEXT(threaded)) {
 		pthreads_store_tohash(object, table);
 	}
 
