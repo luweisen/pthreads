@@ -122,20 +122,21 @@ static size_t pthreads_stream_memory_read(pthreads_stream_t *threaded_stream, ch
 
 /* {{{ */
 static int pthreads_stream_memory_close(pthreads_stream_t *threaded_stream, int close_handle) {
+	return 0;
+}
+/* }}} */
+
+/* {{{ */
+static void pthreads_stream_memory_free(pthreads_stream_t *threaded_stream, int close_handle) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 
-	if(stream_lock(threaded_stream)) {
-		pthreads_stream_memory_data *ms = (pthreads_stream_memory_data*)stream->abstract;
-		assert(ms != NULL);
+	pthreads_stream_memory_data *ms = (pthreads_stream_memory_data*)stream->abstract;
+	assert(ms != NULL);
 
-		if (ms->data && close_handle && ms->mode != PTHREADS_TEMP_STREAM_READONLY) {
-			free(ms->data);
-		}
-		free(ms);
-
-		stream_unlock(threaded_stream);
+	if (ms->data && close_handle && ms->mode != PTHREADS_TEMP_STREAM_READONLY) {
+		free(ms->data);
 	}
-	return 0;
+	free(ms);
 }
 /* }}} */
 
@@ -302,7 +303,8 @@ static int pthreads_stream_memory_set_option(pthreads_stream_t *threaded_stream,
 
 const pthreads_stream_ops pthreads_stream_memory_ops = {
 	pthreads_stream_memory_write, pthreads_stream_memory_read,
-	pthreads_stream_memory_close, pthreads_stream_memory_flush,
+	pthreads_stream_memory_close, pthreads_stream_memory_free,
+	pthreads_stream_memory_flush,
 	"MEMORY",
 	pthreads_stream_memory_seek,
 	pthreads_stream_memory_cast,
@@ -477,29 +479,34 @@ static size_t pthreads_stream_temp_read(pthreads_stream_t *threaded_stream, char
 static int pthreads_stream_temp_close(pthreads_stream_t *threaded_stream, int close_handle) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 
-	if(stream_lock(threaded_stream)) {
-		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
-		int ret;
+	pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
+	int ret;
 
-		assert(ts != NULL);
+	assert(ts != NULL);
 
-		if (ts->innerstream) {
-			ret = pthreads_stream_close_enclosed(ts->innerstream, PTHREADS_STREAM_FREE_CLOSE | (close_handle ? 0 : PTHREADS_STREAM_FREE_PRESERVE_HANDLE));
-		} else {
-			ret = 0;
-		}
-
-		zval_ptr_dtor(&ts->meta);
-
-		if (ts->tmpdir) {
-			free(ts->tmpdir);
-		}
-
-		free(ts);
-		stream_unlock(threaded_stream);
-
-		return ret;
+	if (ts->innerstream) {
+		ret = pthreads_stream_close_enclosed(ts->innerstream, PTHREADS_STREAM_FREE_CLOSE | (close_handle ? 0 : PTHREADS_STREAM_FREE_PRESERVE_HANDLE));
+	} else {
+		ret = 0;
 	}
+	zval_ptr_dtor(&ts->meta);
+
+	return ret;
+}
+/* }}} */
+
+/* {{{ */
+static void pthreads_stream_temp_free(pthreads_stream_t *threaded_stream, int close_handle) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+
+	pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
+
+	assert(ts != NULL);
+
+	if (ts->tmpdir) {
+		free(ts->tmpdir);
+	}
+	free(ts);
 }
 /* }}} */
 
@@ -660,7 +667,8 @@ static int pthreads_stream_temp_set_option(pthreads_stream_t *threaded_stream, i
 
 const pthreads_stream_ops pthreads_stream_temp_ops = {
 	pthreads_stream_temp_write, pthreads_stream_temp_read,
-	pthreads_stream_temp_close, pthreads_stream_temp_flush,
+	pthreads_stream_temp_close, pthreads_stream_temp_free,
+	pthreads_stream_temp_flush,
 	"TEMP",
 	pthreads_stream_temp_seek,
 	pthreads_stream_temp_cast,
@@ -720,7 +728,8 @@ pthreads_stream_t *_pthreads_stream_temp_open(int mode, size_t max_memory_usage,
 
 const pthreads_stream_ops pthreads_stream_rfc2397_ops = {
 	pthreads_stream_temp_write, pthreads_stream_temp_read,
-	pthreads_stream_temp_close, pthreads_stream_temp_flush,
+	pthreads_stream_temp_close, pthreads_stream_temp_free,
+	pthreads_stream_temp_flush,
 	"RFC2397",
 	pthreads_stream_temp_seek,
 	pthreads_stream_temp_cast,

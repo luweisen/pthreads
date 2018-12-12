@@ -210,12 +210,18 @@ static int pthreads_sockop_close(pthreads_stream_t *threaded_stream, int close_h
 			closesocket(sock->socket);
 			sock->socket = SOCK_ERR;
 		}
-
 	}
-
-	free(sock);
-
 	return 0;
+}
+
+static void pthreads_sockop_free(pthreads_stream_t *threaded_stream, int close_handle) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_netstream_data_t *sock = (pthreads_netstream_data_t*)stream->abstract;
+
+	if (!sock) {
+		return;
+	}
+	free(sock);
 }
 
 static int pthreads_sockop_flush(pthreads_stream_t *threaded_stream) {
@@ -481,7 +487,8 @@ static int pthreads_sockop_cast(pthreads_stream_t *threaded_stream, int castas, 
  * */
 const pthreads_stream_ops pthreads_stream_generic_socket_ops = {
 	pthreads_sockop_write, pthreads_sockop_read,
-	pthreads_sockop_close, pthreads_sockop_flush,
+	pthreads_sockop_close, pthreads_sockop_free,
+	pthreads_sockop_flush,
 	"generic_socket",
 	NULL, /* seek */
 	pthreads_sockop_cast,
@@ -491,7 +498,8 @@ const pthreads_stream_ops pthreads_stream_generic_socket_ops = {
 
 const pthreads_stream_ops pthreads_stream_socket_ops = {
 	pthreads_sockop_write, pthreads_sockop_read,
-	pthreads_sockop_close, pthreads_sockop_flush,
+	pthreads_sockop_close, pthreads_sockop_free,
+	pthreads_sockop_flush,
 	"tcp_socket",
 	NULL, /* seek */
 	pthreads_sockop_cast,
@@ -501,7 +509,8 @@ const pthreads_stream_ops pthreads_stream_socket_ops = {
 
 const pthreads_stream_ops pthreads_stream_udp_socket_ops = {
 	pthreads_sockop_write, pthreads_sockop_read,
-	pthreads_sockop_close, pthreads_sockop_flush,
+	pthreads_sockop_close, pthreads_sockop_free,
+	pthreads_sockop_flush,
 	"udp_socket",
 	NULL, /* seek */
 	pthreads_sockop_cast,
@@ -512,7 +521,8 @@ const pthreads_stream_ops pthreads_stream_udp_socket_ops = {
 #ifdef AF_UNIX
 const pthreads_stream_ops pthreads_stream_unix_socket_ops = {
 	pthreads_sockop_write, pthreads_sockop_read,
-	pthreads_sockop_close, pthreads_sockop_flush,
+	pthreads_sockop_close, pthreads_sockop_free,
+	pthreads_sockop_flush,
 	"unix_socket",
 	NULL, /* seek */
 	pthreads_sockop_cast,
@@ -522,7 +532,8 @@ const pthreads_stream_ops pthreads_stream_unix_socket_ops = {
 
 const pthreads_stream_ops pthreads_stream_unixdg_socket_ops = {
 	pthreads_sockop_write, pthreads_sockop_read,
-	pthreads_sockop_close, pthreads_sockop_flush,
+	pthreads_sockop_close, pthreads_sockop_free,
+	pthreads_sockop_flush,
 	"udg_socket",
 	NULL, /* seek */
 	pthreads_sockop_cast,

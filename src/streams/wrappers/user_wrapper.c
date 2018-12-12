@@ -594,26 +594,30 @@ static int pthreads_userstreamop_close(pthreads_stream_t *threaded_stream, int c
 
 	assert(us != NULL);
 
-	if(stream_lock(threaded_stream)) {
-		ZVAL_STRINGL(&func_name, PTHREADS_USERSTREAM_CLOSE, sizeof(PTHREADS_USERSTREAM_CLOSE)-1);
+	ZVAL_STRINGL(&func_name, PTHREADS_USERSTREAM_CLOSE, sizeof(PTHREADS_USERSTREAM_CLOSE)-1);
 
-		call_user_function(NULL,
-				Z_ISUNDEF(us->object)? NULL : &us->object,
-				&func_name,
-				&retval,
-				0, NULL);
+	call_user_function(NULL,
+			Z_ISUNDEF(us->object)? NULL : &us->object,
+			&func_name,
+			&retval,
+			0, NULL);
 
-		zval_ptr_dtor(&retval);
-		zval_ptr_dtor(&func_name);
+	zval_ptr_dtor(&retval);
+	zval_ptr_dtor(&func_name);
 
-		zval_ptr_dtor(&us->object);
-		ZVAL_UNDEF(&us->object);
-
-		free(us);
-
-		stream_unlock(threaded_stream);
-	}
 	return 0;
+}
+
+static void pthreads_userstreamop_free(pthreads_stream_t *threaded_stream, int close_handle) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_userstream_data_t *us = (pthreads_userstream_data_t *)stream->abstract;
+
+	assert(us != NULL);
+
+	zval_ptr_dtor(&us->object);
+	ZVAL_UNDEF(&us->object);
+
+	free(us);
 }
 
 static int pthreads_userstreamop_flush(pthreads_stream_t *threaded_stream) {
@@ -1363,25 +1367,30 @@ static int pthreads_userstreamop_closedir(pthreads_stream_t *threaded_stream, in
 
 	assert(us != NULL);
 
-	if(stream_lock(threaded_stream)) {
-		ZVAL_STRINGL(&func_name, PTHREADS_USERSTREAM_DIR_CLOSE, sizeof(PTHREADS_USERSTREAM_DIR_CLOSE)-1);
+	ZVAL_STRINGL(&func_name, PTHREADS_USERSTREAM_DIR_CLOSE, sizeof(PTHREADS_USERSTREAM_DIR_CLOSE)-1);
 
-		call_user_function(NULL,
-				Z_ISUNDEF(us->object)? NULL : &us->object,
-				&func_name,
-				&retval,
-				0, NULL);
+	call_user_function(NULL,
+			Z_ISUNDEF(us->object)? NULL : &us->object,
+			&func_name,
+			&retval,
+			0, NULL);
 
-		zval_ptr_dtor(&retval);
-		zval_ptr_dtor(&func_name);
-		zval_ptr_dtor(&us->object);
-		ZVAL_UNDEF(&us->object);
+	zval_ptr_dtor(&retval);
+	zval_ptr_dtor(&func_name);
 
-		free(us);
-
-		stream_unlock(threaded_stream);
-	}
 	return 0;
+}
+
+static void pthreads_userstreamop_freedir(pthreads_stream_t *threaded_stream, int close_handle) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_userstream_data_t *us = (pthreads_userstream_data_t *)stream->abstract;
+
+	assert(us != NULL);
+
+	zval_ptr_dtor(&us->object);
+	ZVAL_UNDEF(&us->object);
+
+	free(us);
 }
 
 static int pthreads_userstreamop_rewinddir(pthreads_stream_t *threaded_stream, zend_off_t offset, int whence, zend_off_t *newoffs) {
@@ -1472,7 +1481,8 @@ static int pthreads_userstreamop_cast(pthreads_stream_t *threaded_stream, int ca
 
 const pthreads_stream_ops pthreads_stream_userspace_ops = {
 	pthreads_userstreamop_write, pthreads_userstreamop_read,
-	pthreads_userstreamop_close, pthreads_userstreamop_flush,
+	pthreads_userstreamop_close, pthreads_userstreamop_free,
+	pthreads_userstreamop_flush,
 	"user-space",
 	pthreads_userstreamop_seek,
 	pthreads_userstreamop_cast,
@@ -1484,6 +1494,7 @@ const pthreads_stream_ops pthreads_stream_userspace_dir_ops = {
 	NULL, /* write */
 	pthreads_userstreamop_readdir,
 	pthreads_userstreamop_closedir,
+	pthreads_userstreamop_freedir,
 	NULL, /* flush */
 	"user-space-dir",
 	pthreads_userstreamop_rewinddir,

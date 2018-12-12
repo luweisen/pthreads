@@ -618,19 +618,26 @@ static int pthreads_ftp_dirstream_close(pthreads_stream_t *threaded_stream, int 
 	pthreads_stream_close(data->datastream, PTHREADS_STREAM_FREE_CLOSE);
 	data->datastream = NULL;
 
-	efree(data);
-	stream->abstract = NULL;
-
 	return 0;
 }
 /* }}} */
 
+/* {{{ pthreads_ftp_dirstream_close */
+static void pthreads_ftp_dirstream_free(pthreads_stream_t *threaded_stream, int close_handle) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_ftp_dirstream_data *data = stream->abstract;
+
+	efree(data);
+	stream->abstract = NULL;
+}
+/* }}} */
 /* ftp dirstreams only need to support read and close operations,
    They can't be rewound because the underlying ftp stream can't be rewound. */
 static const pthreads_stream_ops pthreads_ftp_dirstream_ops = {
 	NULL, /* write */
 	pthreads_ftp_dirstream_read, /* read */
 	pthreads_ftp_dirstream_close, /* close */
+	pthreads_ftp_dirstream_free, /* free */
 	NULL, /* flush */
 	"ftpdir",
 	NULL, /* rewind */

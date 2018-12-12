@@ -462,70 +462,80 @@ static size_t pthreads_stdiop_read(pthreads_stream_t *threaded_stream, char *buf
 static int pthreads_stdiop_close(pthreads_stream_t *threaded_stream, int close_handle) {
 	int ret;
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
-	pthreads_stdio_stream_data *data = NULL;
+	pthreads_stdio_stream_data *data = (pthreads_stdio_stream_data*)stream->abstract;
 
-	if(stream_lock(threaded_stream)) {
-		data = (pthreads_stdio_stream_data*)stream->abstract;
-
-		assert(data != NULL);
+	assert(data != NULL);
 
 #if HAVE_MMAP
-		if (data->last_mapped_addr) {
-			munmap(data->last_mapped_addr, data->last_mapped_len);
-			data->last_mapped_addr = NULL;
-		}
+	if (data->last_mapped_addr) {
+		munmap(data->last_mapped_addr, data->last_mapped_len);
+		data->last_mapped_addr = NULL;
+	}
 #elif defined(PHP_WIN32)
-		if (data->last_mapped_addr) {
-			UnmapViewOfFile(data->last_mapped_addr);
-			data->last_mapped_addr = NULL;
-		}
-		if (data->file_mapping) {
-			CloseHandle(data->file_mapping);
-			data->file_mapping = NULL;
-		}
+	if (data->last_mapped_addr) {
+		UnmapViewOfFile(data->last_mapped_addr);
+		data->last_mapped_addr = NULL;
+	}
+	if (data->file_mapping) {
+		CloseHandle(data->file_mapping);
+		data->file_mapping = NULL;
+	}
 #endif
 
-		if (close_handle) {
-			if (data->file) {
-				if (data->is_process_pipe) {
-					errno = 0;
-					ret = pclose(data->file);
+	if (close_handle) {
+		if (data->file) {
+			if (data->is_process_pipe) {
+				errno = 0;
+				ret = pclose(data->file);
 
 #if HAVE_SYS_WAIT_H
-					if (WIFEXITED(ret)) {
-						ret = WEXITSTATUS(ret);
-					}
-#endif
-				} else {
-					ret = fclose(data->file);
-					data->file = NULL;
+				if (WIFEXITED(ret)) {
+					ret = WEXITSTATUS(ret);
 				}
-			} else if (data->fd != -1) {
-				ret = close(data->fd);
-				data->fd = -1;
-			} else {
-				stream_unlock(threaded_stream);
-				return 0; /* everything should be closed already -> success */
-			}
-			if (data->temp_name) {
-#ifdef PHP_WIN32
-				php_win32_ioutil_unlink(ZSTR_VAL(data->temp_name));
-#else
-				unlink(ZSTR_VAL(data->temp_name));
 #endif
-				zend_string_release(data->temp_name);
-				data->temp_name = NULL;
+			} else {
+				ret = fclose(data->file);
+				data->file = NULL;
 			}
-		} else {
-			ret = 0;
-			data->file = NULL;
+		} else if (data->fd != -1) {
+			ret = close(data->fd);
 			data->fd = -1;
+		} else {
+			stream_unlock(threaded_stream);
+			return 0; /* everything should be closed already -> success */
 		}
-		free(data);
-
-		stream_unlock(threaded_stream);
+		if (data->temp_name) {
+#ifdef PHP_WIN32
+			php_win32_ioutil_unlink(ZSTR_VAL(data->temp_name));
+#else
+			unlink(ZSTR_VAL(data->temp_name));
+#endif
+		}
+	} else {
+		ret = 0;
+		data->file = NULL;
+		data->fd = -1;
 	}
+
 	return ret;
+}
+
+static void pthreads_stdiop_free(pthreads_stream_t *threaded_stream, int close_handle) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stdio_stream_data *data = (pthreads_stdio_stream_data*)stream->abstract;
+
+	assert(data != NULL);
+
+	if (close_handle) {
+
+		if (data->temp_name) {
+			zend_string_release(data->temp_name);
+			data->temp_name = NULL;
+		}
+	}
+	free(data);
+
+	stream->abstract = NULL;
 }
 
 static int pthreads_stdiop_flush(pthreads_stream_t *threaded_stream) {
@@ -1049,7 +1059,8 @@ static int pthreads_stdiop_set_option(pthreads_stream_t *threaded_stream, int op
 /* This should be "const", but phpdbg overwrite it */
 pthreads_stream_ops pthreads_stream_stdio_ops = {
 	pthreads_stdiop_write, pthreads_stdiop_read,
-	pthreads_stdiop_close, pthreads_stdiop_flush,
+	pthreads_stdiop_close, pthreads_stdiop_free,
+	pthreads_stdiop_flush,
 	"STDIO",
 	pthreads_stdiop_seek,
 	pthreads_stdiop_cast,
@@ -1086,13 +1097,10 @@ static size_t pthreads_plain_files_dirstream_read(pthreads_stream_t *threaded_st
 }
 
 static int pthreads_plain_files_dirstream_close(pthreads_stream_t *threaded_stream, int close_handle) {
-	int result = FAILURE;
-	if(stream_lock(threaded_stream)) {
-		result = closedir((DIR *)PTHREADS_FETCH_STREAMS_STREAM(threaded_stream)->abstract);
-		stream_unlock(threaded_stream);
-	}
-	return result;
+	return closedir((DIR *)PTHREADS_FETCH_STREAMS_STREAM(threaded_stream)->abstract);
 }
+
+static void pthreads_plain_files_dirstream_free(pthreads_stream_t *threaded_stream, int close_handle) {}
 
 static int pthreads_plain_files_dirstream_rewind(pthreads_stream_t *threaded_stream, zend_off_t offset, int whence, zend_off_t *newoffs) {
 	if(stream_lock(threaded_stream)) {
@@ -1104,7 +1112,9 @@ static int pthreads_plain_files_dirstream_rewind(pthreads_stream_t *threaded_str
 
 pthreads_stream_ops pthreads_plain_files_dirstream_ops = {
 	NULL, pthreads_plain_files_dirstream_read,
-	pthreads_plain_files_dirstream_close, NULL,
+	pthreads_plain_files_dirstream_close,
+	pthreads_plain_files_dirstream_free,
+	NULL,
 	"dir",
 	pthreads_plain_files_dirstream_rewind,
 	NULL, /* cast */

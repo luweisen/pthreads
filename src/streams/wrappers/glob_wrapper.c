@@ -201,27 +201,28 @@ static size_t pthreads_glob_stream_read(pthreads_stream_t *threaded_stream, char
 
 /* {{{ */
 static int pthreads_glob_stream_close(pthreads_stream_t *threaded_stream, int close_handle) {
+	return 0;
+}
+/* }}} */
+
+/* {{{ */
+static void pthreads_glob_stream_free(pthreads_stream_t *threaded_stream, int close_handle) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	pthreads_glob_s_t *pglob = (pthreads_glob_s_t *)stream->abstract;
 
-	if(stream_lock(threaded_stream)) {
-		if (pglob) {
-			pglob->index = 0;
-			globfree(&pglob->glob);
-			if (pglob->path) {
-				free(pglob->path);
-			}
-			if (pglob->pattern) {
-				free(pglob->pattern);
-			}
+	if (pglob) {
+		pglob->index = 0;
+		globfree(&pglob->glob);
+		if (pglob->path) {
+			free(pglob->path);
 		}
-		free(stream->abstract);
-
-		stream_unlock(threaded_stream);
+		if (pglob->pattern) {
+			free(pglob->pattern);
+		}
 	}
-	return 0;
+	free(stream->abstract);
 }
-/* {{{ */
+/* }}} */
 
 /* {{{ */
 static int pthreads_glob_stream_rewind(pthreads_stream_t *threaded_stream, zend_off_t offset, int whence, zend_off_t *newoffs) {
@@ -244,7 +245,9 @@ static int pthreads_glob_stream_rewind(pthreads_stream_t *threaded_stream, zend_
 
 const pthreads_stream_ops pthreads_glob_stream_ops = {
 	NULL, pthreads_glob_stream_read,
-	pthreads_glob_stream_close, NULL,
+	pthreads_glob_stream_close,
+	pthreads_glob_stream_free,
+	NULL,
 	"glob",
 	pthreads_glob_stream_rewind,
 	NULL, /* cast */

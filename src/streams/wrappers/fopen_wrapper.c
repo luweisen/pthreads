@@ -65,10 +65,15 @@ static int pthreads_stream_output_close(pthreads_stream_t *threaded_stream, int 
 }
 /* }}} */
 
+/* {{{ */
+static void pthreads_stream_output_free(pthreads_stream_t *threaded_stream, int close_handle) { }
+/* }}} */
+
 const pthreads_stream_ops pthreads_stream_output_ops = {
 	pthreads_stream_output_write,
 	pthreads_stream_output_read,
 	pthreads_stream_output_close,
+	pthreads_stream_output_free,
 	NULL, /* flush */
 	"Output",
 	NULL, /* seek */

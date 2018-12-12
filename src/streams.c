@@ -532,6 +532,7 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 		if (stream->flags & PTHREADS_STREAM_FLAG_NO_CLOSE) {
 			preserve_handle = 1;
 		}
+		stream->preserve_handle = preserve_handle;
 
 #if PTHREADS_STREAM_DEBUG
 		{
@@ -657,6 +658,8 @@ void _pthreads_stream_free(pthreads_stream_t *threaded_stream) {
 	pthreads_stream_wrapper *wrapper = NULL;
 
 	if(stream && MONITOR_LOCK(threaded_stream)) {
+		stream->ops->free(threaded_stream, stream->preserve_handle ? 0 : 1);
+
 		threaded_context = PTHREADS_STREAM_GET_CONTEXT(stream);
 
 		while (stream->readfilters.head) {

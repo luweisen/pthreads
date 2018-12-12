@@ -90,6 +90,7 @@ typedef struct _pthreads_stream_ops  {
 	size_t (*write)(pthreads_stream_t *threaded_stream, const char *buf, size_t count);
 	size_t (*read)(pthreads_stream_t *threaded_stream, char *buf, size_t count);
 	int    (*close)(pthreads_stream_t *threaded_stream, int close_handle);
+	void   (*free)(pthreads_stream_t *threaded_stream, int close_handle);
 	int    (*flush)(pthreads_stream_t *threaded_stream);
 
 	const char *label; /* label for this ops structure */
@@ -150,6 +151,7 @@ struct _pthreads_stream  {
 	uint8_t state:3;
 	uint8_t in_free:2;			/* to prevent recursion during free */
 	uint8_t eof:1;
+	uint8_t preserve_handle:1;
 
 	/* so we know how to clean it up correctly.  This should be set to
 	 * PTHREADS_STREAM_FCLOSE_XXX as appropriate */
