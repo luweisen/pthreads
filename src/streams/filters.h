@@ -91,6 +91,7 @@ struct _pthreads_stream_filter {
 };
 
 int pthreads_init_stream_filters();
+int pthreads_shutdown_stream_filters();
 
 /* stack filter onto a stream */
 void _pthreads_stream_filter_prepend(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);

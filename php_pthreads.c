@@ -547,7 +547,10 @@ PHP_RSHUTDOWN_FUNCTION(pthreads) {
 	zend_hash_destroy(&PTHREADS_ZG(resolve));
 	zend_hash_destroy(&PTHREADS_ZG(filenames));
 
-	pthreads_stream_globals_object_shutdown();
+	if(pthreads_stream_globals_is_main_context()) {
+		pthreads_shutdown_streams();
+		pthreads_stream_globals_object_shutdown();
+	}
 
 	return SUCCESS;
 }
@@ -561,7 +564,7 @@ PHP_MINFO_FUNCTION(pthreads)
 	pthreads_info_print_stream_hash("Stream Socket Transports", PTHREADS_HT_P(pthreads_stream_xport_get_hash()));
 	pthreads_info_print_stream_hash("Stream Filters", PTHREADS_HT_P(pthreads_get_stream_filters_hash()));
 
-	php_info_print_table_end();
+	pthreads_info_print_table_end();
 }
 
 #ifndef HAVE_PTHREADS_CLASS_THREADED

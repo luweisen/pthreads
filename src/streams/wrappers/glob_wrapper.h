@@ -15,8 +15,8 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_GLOB_WRAPPER_H
-#define HAVE_PTHREADS_STREAMS_GLOB_WRAPPER_H
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_GLOB_WRAPPER_H
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_GLOB_WRAPPER_H
 
 extern const pthreads_stream_ops pthreads_glob_stream_ops;
 extern const pthreads_stream_wrapper_ops  pthreads_glob_stream_wrapper_ops;

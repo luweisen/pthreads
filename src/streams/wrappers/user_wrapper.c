@@ -15,8 +15,8 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_USER_WRAPPER
-#define HAVE_PTHREADS_STREAMS_USER_WRAPPER
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_USER_WRAPPER
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_USER_WRAPPER
 
 #ifndef HAVE_PTHREADS_H
 #	include <src/pthreads.h>
@@ -42,26 +42,8 @@
 # endif
 #endif
 
-/*
-//#include "php.h"
-#include "php_globals.h"
-#include "ext/standard/file.h"
-#include "ext/standard/flock_compat.h"
-#ifdef HAVE_SYS_FILE_H
-#include <sys/file.h>
-#endif
-#include <stddef.h>
-
-#if HAVE_UTIME
-# ifdef PHP_WIN32
-#  include <sys/utime.h>
-# else
-#  include <utime.h>
-# endif
-#endif
-*/
-#ifndef HAVE_PTHREADS_STREAMS_USER_WRAPPER_H
-#	include <src/streams/user_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_USER_WRAPPER_H
+#	include <src/streams/wrappers/user_wrapper.h>
 #endif
 
 static pthreads_stream_t *pthreads_user_wrapper_opener(pthreads_stream_wrapper_t *threaded_wrapper,

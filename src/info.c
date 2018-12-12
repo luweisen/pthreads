@@ -85,4 +85,14 @@ static void pthreads_info_print_stream_hash(const char *name, HashTable *ht) /* 
 }
 /* }}} */
 
+static void pthreads_info_print_table_end(void) /* {{{ */
+{
+	if (!sapi_module.phpinfo_as_text) {
+		pthreads_info_print("</table>\n");
+	} else {
+		pthreads_info_print("\n");
+	}
+}
+/* }}} */
+
 #endif

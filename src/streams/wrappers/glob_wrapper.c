@@ -15,8 +15,8 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_GLOB_WRAPPER
-#define HAVE_PTHREADS_STREAMS_GLOB_WRAPPER
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_GLOB_WRAPPER
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_GLOB_WRAPPER
 
 //#include "php.h"
 

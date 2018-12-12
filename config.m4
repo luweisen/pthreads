@@ -43,9 +43,10 @@ if test "$PHP_PTHREADS" != "no"; then
         src/info.c \
         src/url.c \
         src/streams.c src/streams/wrappers.c src/streams/streamglobals.c src/streams/cast.c src/streams/buckets.c \
-        src/streams/memory.c src/streams/filters.c src/streams/plain_wrapper.c src/streams/user_wrapper.c \
+        src/streams/memory.c src/streams/filters.c src/streams/wrappers/plain_wrapper.c src/streams/wrappers/user_wrapper.c \
         src/streams/transports.c src/streams/xp_socket.c src/streams/mmap.c \
-        src/streams/glob_wrapper.c src/streams/fopen_wrapper.c src/file/file.c src/streams/http_fopen_wrapper.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+        src/streams/wrappers/glob_wrapper.c src/streams/wrappers/fopen_wrapper.c src/file/file.c src/streams/wrappers/http_fopen_wrapper.c \
+        src/streams/wrappers/ftp_fopen_wrapper.c src/streams/standard_filters.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 	PHP_ADD_BUILD_DIR($ext_builddir/src, 1)
 	PHP_ADD_INCLUDE($ext_builddir)
 	PHP_SUBST(PTHREADS_SHARED_LIBADD)

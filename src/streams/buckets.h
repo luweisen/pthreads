@@ -39,6 +39,7 @@ pthreads_stream_bucket_brigade *pthreads_stream_bucket_brigade_alloc();
 void pthreads_stream_bucket_brigade_free(pthreads_stream_bucket_brigade *brigade);
 pthreads_stream_bucket *pthreads_stream_bucket_alloc(char *buf, size_t buflen);
 void pthreads_stream_bucket_free(pthreads_stream_bucket *bucket);
+pthreads_stream_bucket *pthreads_stream_bucket_fetch(pthreads_stream_bucket_t *threaded_bucket, zval *ref);
 
 void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket);
 void pthreads_stream_bucket_append(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket);

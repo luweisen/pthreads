@@ -1,5 +1,5 @@
-#ifndef HAVE_PTHREADS_STREAMS_HTTP_FOPEN_WRAPPER
-#define HAVE_PTHREADS_STREAMS_HTTP_FOPEN_WRAPPER
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_HTTP_FOPEN_WRAPPER
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_HTTP_FOPEN_WRAPPER
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -13,8 +13,8 @@
 #	include <src/streams.h>
 #endif
 
-#ifndef HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER_H
-#	include <src/streams/fopen_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_FOPEN_WRAPPER_H
+#	include <src/streams/wrappers/fopen_wrapper.h>
 #endif
 
 #ifndef PHP_STRING_H

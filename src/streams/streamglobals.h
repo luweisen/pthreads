@@ -63,6 +63,9 @@ ZEND_EXTERN_MODULE_GLOBALS(pthreads_stream)
 #define PTHREADS_STREAMG(v) pthreads_stream_globals.v
 /* }}} */
 
+/* {{{  */
+int pthreads_stream_globals_is_main_context(); /* }}} */
+
 /* {{{ initialize (true) file globals */
 void pthreads_stream_globals_init(); /* }}} */
 

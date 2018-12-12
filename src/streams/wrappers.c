@@ -33,11 +33,9 @@ int pthreads_init_stream_wrappers() {
 			pthreads_register_url_stream_wrapper("glob", PTHREADS_STREAMG(glob_stream_wrapper)) == SUCCESS &&
 #endif
 			pthreads_register_url_stream_wrapper("data", PTHREADS_STREAMG(stream_rfc2397_wrapper)) == SUCCESS &&
-			pthreads_register_url_stream_wrapper("http", PTHREADS_STREAMG(stream_http_wrapper)) == SUCCESS
+			pthreads_register_url_stream_wrapper("http", PTHREADS_STREAMG(stream_http_wrapper)) == SUCCESS &&
+			pthreads_register_url_stream_wrapper("ftp", PTHREADS_STREAMG(stream_ftp_wrapper)) == SUCCESS
 		) ? SUCCESS : FAILURE;
-
-
-	//pthreads_register_url_stream_wrapper("ftp", PTHREADS_STREAMG(stream_ftp_wrapper)) == SUCCESS
 }
 
 /* {{{ wrapper error reporting */

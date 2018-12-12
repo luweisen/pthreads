@@ -40,8 +40,7 @@ struct _pthreads_stream_globals pthreads_stream_globals;
 #	define PTHREADS_STREAMG () ?  : (void***) &pthreads_stream_globals
 #endif
 
-static void pthreads_filter_item_dtor(zval *zv)
-{
+static void pthreads_filter_item_dtor(zval *zv) {
 	struct pthreads_user_filter_data *fdat = Z_PTR_P(zv);
 	free(fdat);
 }
@@ -52,14 +51,18 @@ static void pthreads_wrapper_list_dtor(zval *item) {
 	pefree(list, 1);
 }
 
-static void pthreads_stream_wrapper_dtor(zval *item)
-{
+static void pthreads_stream_wrapper_dtor(zval *item) {
 	struct pthreads_user_stream_wrapper * uwrap = (struct pthreads_user_stream_wrapper*)Z_PTR_P(item);
 
 	free(uwrap->protoname);
 	zend_string_release(uwrap->classname);
 	free(uwrap);
 }
+
+/* {{{ */
+int pthreads_stream_globals_is_main_context() {
+	return (!PTHREADS_STREAMG(creatorId) || PTHREADS_STREAMG(creatorId) == pthreads_self()) ? SUCCESS : FAILURE;
+} /* }}} */
 
 /* {{{ */
 void pthreads_stream_globals_init() {
@@ -100,8 +103,7 @@ int pthreads_stream_globals_object_init() {
 
 /* {{{ */
 int pthreads_stream_globals_object_shutdown() {
-
-	if(PTHREADS_STREAMG(creatorId) == pthreads_self()) {
+	if(pthreads_stream_globals_is_main_context()) {
 		pthreads_ptr_dtor(PTHREADS_STREAMG(default_context));
 		pthreads_ptr_dtor(PTHREADS_STREAMG(plain_files_wrapper));
 		pthreads_ptr_dtor(PTHREADS_STREAMG(stream_php_wrapper));

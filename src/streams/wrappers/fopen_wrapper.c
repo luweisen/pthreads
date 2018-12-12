@@ -15,8 +15,8 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER
-#define HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_FOPEN_WRAPPER
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_FOPEN_WRAPPER
 
 #ifndef HAVE_PTHREADS_H
 #	include <src/pthreads.h>
@@ -36,8 +36,8 @@
 #	include <src/streams/memory.h>
 #endif
 
-#ifndef HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER_H
-#	include <src/streams/fopen_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_FOPEN_WRAPPER_H
+#	include <src/streams/wrappers/fopen_wrapper.h>
 #endif
 
 #ifndef HAVE_PTHREADS_NETWORK_H

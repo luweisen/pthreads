@@ -34,6 +34,11 @@
 #	include <src/object.h>
 #endif
 
+#ifndef HAVE_PTHREADS_STREAMS_STANDARD_FILTERS_H
+#	include <src/streams/standard_filters.h>
+#endif
+
+
 int pthreads_init_stream_filters() {
 
 	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_PASS_ON")			, PTHREADS_SFS_PASS_ON);
@@ -43,6 +48,15 @@ int pthreads_init_stream_filters() {
 	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FLAG_NORMAL")		, PTHREADS_SFS_FLAG_NORMAL);
 	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FLAG_FLUSH_INC")	, PTHREADS_SFS_FLAG_FLUSH_INC);
 	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FLAG_FLUSH_CLOSE")	, PTHREADS_SFS_FLAG_FLUSH_CLOSE);
+
+	standard_filters_init();
+
+	return SUCCESS;
+}
+
+int pthreads_shutdown_stream_filters() {
+
+	standard_filters_shutdown();
 
 	return SUCCESS;
 }

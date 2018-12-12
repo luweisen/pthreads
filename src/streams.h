@@ -262,6 +262,7 @@ struct _pthreads_stream  {
 	(pthreads_stream_delete_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_ENCLOSING_STREAM))
 
 void pthreads_init_streams();
+void pthreads_shutdown_streams();
 
 zend_bool stream_lock(pthreads_stream_t *threaded_stream);
 #define stream_unlock(threaded_stream) \
@@ -477,16 +478,16 @@ int _pthreads_stream_copy_to_stream_ex(pthreads_stream_t *threaded_src, pthreads
 #	include <src/streams/transports.h>
 #endif
 
-#ifndef HAVE_PTHREADS_STREAMS_PLAIN_WRAPPER_H
-#	include <src/streams/plain_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_PLAIN_WRAPPER_H
+#	include <src/streams/wrappers/plain_wrapper.h>
 #endif
 
-#ifndef HAVE_PTHREADS_STREAMS_GLOB_WRAPPER_H
-#	include <src/streams/glob_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_GLOB_WRAPPER_H
+#	include <src/streams/wrappers/glob_wrapper.h>
 #endif
 
-#ifndef HAVE_PTHREADS_STREAMS_USER_WRAPPER_H
-#	include <src/streams/user_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_USER_WRAPPER_H
+#	include <src/streams/wrappers/user_wrapper.h>
 #endif
 
 #ifndef HAVE_PTHREADS_STREAMS_MMAP_H

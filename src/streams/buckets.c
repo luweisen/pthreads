@@ -66,6 +66,15 @@ void pthreads_stream_bucket_free(pthreads_stream_bucket *bucket) {
 	free(bucket);
 }
 
+pthreads_stream_bucket *pthreads_stream_bucket_fetch(pthreads_stream_bucket_t *threaded_bucket, zval *ref) {
+	ZVAL_OBJ(ref, PTHREADS_STD_P(threaded_bucket));
+	Z_ADDREF_P(ref);
+
+	pthreads_stream_bucket_unlink(threaded_bucket);
+
+	return PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
+}
+
 void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket) {
 	pthreads_stream_bucket_brigade *brigade = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_brigade);
 	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);

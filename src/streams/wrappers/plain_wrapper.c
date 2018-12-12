@@ -15,41 +15,8 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_PLAIN_WRAPPER
-#define HAVE_PTHREADS_STREAMS_PLAIN_WRAPPER
-
-/*
-#include "php.h"
-#include "php_globals.h"
-#include "php_network.h"
-#include "php_open_temporary_file.h" // ok
-#include "ext/standard/file.h"
-#include "ext/standard/flock_compat.h"
-#include "ext/standard/php_filestat.h"
-#include <stddef.h>
-#include <fcntl.h>
-#if HAVE_SYS_WAIT_H
-#include <sys/wait.h>
-#endif
-#if HAVE_SYS_FILE_H
-#include <sys/file.h>
-#endif
-#ifdef HAVE_SYS_MMAN_H
-#include <sys/mman.h>
-#endif
-#include "SAPI.h"
-
-#ifndef HAVE_PTHREADS_STREAMS_INTERNAL_H
-#	include <src/streams/internal.h>
-#endif
-
-#ifdef PHP_WIN32
-# include "win32/winutil.h"
-# include "win32/time.h"
-# include "win32/ioutil.h"
-# include "win32/readdir.h"
-#endif
-*/
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_PLAIN_WRAPPER
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_PLAIN_WRAPPER
 
 #ifndef HAVE_PTHREADS_H
 #	include <src/pthreads.h>

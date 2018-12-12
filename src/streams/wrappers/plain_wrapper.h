@@ -15,8 +15,8 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_PLAIN_WRAPPER_H
-#define HAVE_PTHREADS_STREAMS_PLAIN_WRAPPER_H
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_PLAIN_WRAPPER_H
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_PLAIN_WRAPPER_H
 
 /* definitions for the plain files wrapper */
 

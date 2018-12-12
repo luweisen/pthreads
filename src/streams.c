@@ -34,8 +34,8 @@
 #	include <src/streams/internal.h>
 #endif
 
-#ifndef HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER_H
-#	include <src/streams/fopen_wrapper.h>
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_FOPEN_WRAPPER_H
+#	include <src/streams/wrappers/fopen_wrapper.h>
 #endif
 
 #ifndef HAVE_PTHREADS_STREAMS_MEMORY_H
@@ -120,15 +120,20 @@ int pthreads_stream_from_key(const char *key, pthreads_stream_t **threaded_strea
 }
 
 void pthreads_init_streams() {
-	pthreads_init_stream_filters();
-	pthreads_init_stream_wrappers();
-	pthreads_init_stream_transports();
-
 	INIT_GLOBAL_WRAPPER(stream_php_wrapper		, pthreads_stdio_wops				, NULL, 0);
 	INIT_GLOBAL_WRAPPER(stream_rfc2397_wrapper	, pthreads_stream_rfc2397_wops		, NULL, 1);
 	INIT_GLOBAL_WRAPPER(plain_files_wrapper		, pthreads_plain_files_wrapper_ops	, NULL, 0);
 	INIT_GLOBAL_WRAPPER(glob_stream_wrapper		, pthreads_glob_stream_wrapper_ops	, NULL, 0);
 	INIT_GLOBAL_WRAPPER(stream_http_wrapper		, pthreads_http_stream_wops			, NULL, 1);
+	INIT_GLOBAL_WRAPPER(stream_ftp_wrapper		, pthreads_ftp_stream_wops			, NULL, 1);
+
+	pthreads_init_stream_filters();
+	pthreads_init_stream_wrappers();
+	pthreads_init_stream_transports();
+}
+
+void pthreads_shutdown_streams() {
+	pthreads_shutdown_stream_filters();
 }
 
 zend_bool stream_lock(pthreads_stream_t *threaded_stream) {

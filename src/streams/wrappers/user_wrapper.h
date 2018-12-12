@@ -15,21 +15,25 @@
   | Author: Bastian Schneider <b.schneider@badnoob.com>                  |
   +----------------------------------------------------------------------+
  */
-#ifndef HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER_H
-#define HAVE_PTHREADS_STREAMS_FOPEN_WRAPPER_H
+#ifndef HAVE_PTHREADS_STREAMS_WRAPPERS_USER_WRAPPER_H
+#define HAVE_PTHREADS_STREAMS_WRAPPERS_USER_WRAPPER_H
 
-#ifndef HAVE_PTHREADS_URL_H
-#	include <src/url.h>
-#endif
+struct pthreads_user_stream_wrapper {
+	char * protoname;
+	zend_string *classname;
+	pthreads_stream_wrapper_t *threaded_wrapper;
+};
 
-pthreads_stream_t *pthreads_stream_url_wrap_http(pthreads_stream_wrapper_t *threaded_wrapper, const char *path, const char *mode, int options,
-		zend_string **opened_path, pthreads_stream_context_t *threaded_context, zend_class_entry *ce);
-pthreads_stream_t *pthreads_stream_url_wrap_ftp(pthreads_stream_wrapper_t *threaded_wrapper, const char *path, const char *mode, int options,
-		zend_string **opened_path, pthreads_stream_context_t *threaded_context, zend_class_entry *ce);
-pthreads_stream_t *pthreads_stream_url_wrap_php(pthreads_stream_wrapper_t *threaded_wrapper, const char *path, const char *mode, int options,
-		zend_string **opened_path, pthreads_stream_context_t *threaded_context, zend_class_entry *ce);
+struct _pthreads_userstream_data {
+	struct pthreads_user_stream_wrapper *wrapper;
+	zval object;
+};
+typedef struct _pthreads_userstream_data pthreads_userstream_data_t;
 
-extern const pthreads_stream_wrapper_ops pthreads_stdio_wops;
-extern const pthreads_stream_wrapper_ops pthreads_http_stream_wops;
+extern const pthreads_stream_wrapper_ops pthreads_user_stream_wops;
+extern const pthreads_stream_ops pthreads_stream_userspace_ops;
+extern const pthreads_stream_ops pthreads_stream_userspace_dir_ops;
+#define PTHREADS_STREAM_IS_USERSPACE &pthreads_stream_userspace_ops
+#define PTHREADS_STREAM_IS_USERSPACE_DIR &pthreads_stream_userspace_dir_ops
 
 #endif
