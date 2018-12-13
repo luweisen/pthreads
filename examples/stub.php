@@ -980,8 +980,8 @@ class File extends \Threaded
 	
 	public static function copy(string $source_file, string $destination_file, ?\StreamContext $context = null) : bool {}
 	
-	public static function sockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream{}
+	public static function sockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream {}
 	
-	public static function psockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream{}
+	public static function psockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream {}
 	
 }
