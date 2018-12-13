@@ -45,6 +45,8 @@ PHP_METHOD(File, readfile);
 PHP_METHOD(File, rename);
 PHP_METHOD(File, unlink);
 PHP_METHOD(File, copy);
+PHP_METHOD(File, sockopen);
+PHP_METHOD(File, psockopen);
 
 /**
  * FileStream
@@ -213,6 +215,22 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(File_copy, 0, 2, _IS_BOOL, 0)
 	ZEND_ARG_OBJ_INFO(0, context, StreamContext, 1)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(File_sockopen, 0, 1, FileStream, 1)
+	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
+	ZEND_ARG_INFO(1, errno)
+	ZEND_ARG_INFO(1, errstr)
+	ZEND_ARG_TYPE_INFO(0, timeout, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(File_psockopen, 0, 1, FileStream, 1)
+	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
+	ZEND_ARG_INFO(1, errno)
+	ZEND_ARG_INFO(1, errstr)
+	ZEND_ARG_TYPE_INFO(0, timeout, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
+
 extern zend_function_entry pthreads_streams_file_stream_methods[];
 extern zend_function_entry pthreads_file_methods[];
 #else
@@ -259,6 +277,8 @@ zend_function_entry pthreads_file_methods[] = {
 	PHP_ME(File, rename         , File_rename           , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(File, unlink         , File_unlink           , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(File, copy           , File_copy             , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	PHP_ME(File, sockopen       , File_sockopen         , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+	PHP_ME(File, psockopen      , File_psockopen        , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_FE_END
 };
 
@@ -869,6 +889,37 @@ PHP_METHOD(File, copy) {
 	}
 
 	pthreads_streams_api_file_copy(ZSTR_VAL(source), ZSTR_VAL(destination), zcontext, return_value);
+} /* }}} */
+
+
+/* {{{ proto FileStream File::sockopen(string $hostname [, int $port = -1 [, int &$errno [, string &$errstr [, float $timeout = ini_get("default_socket_timeout") ]]]])
+   */
+PHP_METHOD(File, sockopen) {
+	zend_string *host;
+	zval *zerrno = NULL, *zerrstr = NULL;
+	zend_long port = -1;
+	double timeout = (double)FG(default_socket_timeout);
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|lz/!z/!d", &host, &port, &zerrno, &zerrstr, &timeout) != SUCCESS) {
+		RETURN_NULL();
+	}
+
+	pthreads_streams_api_file_sockopen(host, port, zerrno, zerrstr, timeout, 0, return_value);
+} /* }}} */
+
+/* {{{ proto FileStream File::psockopen(string $hostname [, int $port = -1 [, int &$errno [, string &$errstr [, float $timeout = ini_get("default_socket_timeout") ]]]])
+   */
+PHP_METHOD(File, psockopen) {
+	zend_string *host;
+	zval *zerrno = NULL, *zerrstr = NULL;
+	zend_long port = -1;
+	double timeout = (double)FG(default_socket_timeout);
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|lz/!z/!d", &host, &port, &zerrno, &zerrstr, &timeout) != SUCCESS) {
+		RETURN_NULL();
+	}
+
+	pthreads_streams_api_file_sockopen(host, port, zerrno, zerrstr, timeout, 1, return_value);
 } /* }}} */
 
 #	endif
