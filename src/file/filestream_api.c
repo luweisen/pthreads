@@ -191,7 +191,7 @@ void pthreads_streams_api_filestream_write(zval *object, int argc, zend_string *
 	size_t inputlen = ZSTR_LEN(input);
 	size_t ret, num_bytes;
 
-	if (argc == 2) {
+	if (argc == 1) {
 		num_bytes = inputlen;
 	} else if (maxlen <= 0) {
 		num_bytes = 0;

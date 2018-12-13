@@ -699,6 +699,10 @@ class Socket extends \Threaded
 
 class Streams
 {
+	public function __construct() {
+		throw new Exception("Instantiation of 'Streams' is not allowed");
+	}
+	
 	public static function getFilters() : array {}
 	
 	public static function getTransports() : array {}
@@ -714,13 +718,17 @@ class Streams
 
 class Stream extends \Threaded
 {
+	public function __construct() {
+		throw new Exception("Instantiation of 'Stream' is not allowed");
+	}
+	
 	public const PTHREADS_STREAM_COPY_ALL = -1;
 	
 	public function copyToStream(Stream $dest, int $maxlength = -1, int $offset = 0) : int {} 
 	
-	public function appendFilter(string $filtername, int $read_write = null, $params = null) : ?StreamFilter {}
+	public function appendFilter(string $filtername, int $read_write = null, $params = null) : ?\StreamFilter {}
 	
-	public function prependFilter(string $filtername, int $read_write = null, $params = null) : ?StreamFilter {}
+	public function prependFilter(string $filtername, int $read_write = null, $params = null) : ?\StreamFilter {}
 	
 	public function getContents(int $maxlength = -1, int $offset = -1) : ?string {}
 	
@@ -765,18 +773,24 @@ class StreamContext extends \Threaded
 	
 	public function setParams(array $params) : bool {}
 	
-	public static function getDefault(array $options = null) : StreamContext {}
+	public static function getDefault(array $options = null) : \StreamContext {}
 	
-	public static function setDefault(array $options) : StreamContext {}
+	public static function setDefault(array $options) : \StreamContext {}
 }
 
 class StreamWrapper extends \Threaded
 {
-	
+	public function __construct() {
+		throw new Exception("Instantiation of 'StreamWrapper' is not allowed");
+	}
 }
 
 class StreamFilter extends \Volatile
-{	
+{
+	public function __construct() {
+		throw new Exception("Instantiation of 'StreamFilter' is not allowed");
+	}
+	
 	public function remove() {}
 }
 
@@ -797,6 +811,10 @@ class StreamBucket extends \Volatile
 
 class StreamBucketBrigade extends \Threaded
 {
+	public function __construct() {
+		throw new Exception("Instantiation of 'StreamBucketBrigade' is not allowed");
+	}
+	
 	public function append(StreamBucket $bucket) : void {}
 	
 	public function prepend(StreamBucket $bucket) : void {}
@@ -845,17 +863,21 @@ class pthreads_user_filter extends \Volatile
 
 class SocketStream extends \Stream
 {
+	public function __construct() {
+		throw new Exception("Instantiation of 'SocketStream' is not allowed");
+	}
+	
 	public static function createClient(string $remote_socket, int &$errno = null, string &$errstr = null, 
-			float $timeout = ini_get("default_socket_timeout"), int $flags = \Stream::STREAM_CLIENT_CONNECT, \StreamContext $context = null) : ?\SocketStream {}
+			float $timeout = ini_get("default_socket_timeout"), int $flags = \Stream::STREAM_CLIENT_CONNECT, ?\StreamContext $context = null) : ?\SocketStream {}
 	
 	public static function createServer(string $local_socket, int &$errno = null, string &$errstr = null, 
-			int $flags = \Stream::STREAM_SERVER_BIND | \Stream::STREAM_SERVER_LISTEN, \StreamContext $context = null) : ?\SocketStream {}
+			int $flags = \Stream::STREAM_SERVER_BIND | \Stream::STREAM_SERVER_LISTEN, ?\StreamContext $context = null) : ?\SocketStream {}
 			
 	public static function createPair(int $domain, int $type, int $protocol) : ?array {}
 	
 	public function accept(float $timeout = ini_get("default_socket_timeout"), string &$peername = null) : ?\SocketStream {}
 	
-	public function enableCrypto(bool $enable, int $crypto_type = null, \Stream $session_stream = null) {}
+	public function enableCrypto(bool $enable, int $crypto_type = null, ?\Stream $session_stream = null) {}
 	
 	public function getName(bool $want_peer) : string {}
 	
@@ -868,14 +890,54 @@ class SocketStream extends \Stream
 
 class FileStream extends \Stream
 {
-	public function lock(int $operation, int &$wouldblock) : bool {}
+	public function __construct() {
+		throw new Exception("Instantiation of 'FileStream' is not allowed");
+	}
+	
+	public function lock(int $operation, &$wouldblock) : bool {}
+	
+	public function close() : bool {}
+	
+	public function pclose() : bool {}
+	
+	public function eof() : bool {}
+	
+	public function gets(int $length = 1024) : ?string {}
+	
+	public function getc() : ?string {}
+	
+	public function getss(int $length = 1024, $allowable_tags = null) : ?string {}
+	
+	public function scanf(string $format, ...$args) {}
+	
+	public function write(string $input, int $maxlen = 0) : int {}
+	
+	public function flush() : bool {}
+	
+	public function rewind() : bool {}
+	
+	public function tell() : int {}
+	
+	public function seek(int $offset = SEEK_SET, int $whence) : int {}
+	
+	public function passthru() : int {}
+	
+	public function truncate(int $size) : bool {}
+	
+	public function stat() : ?array {}
+	
+	public function read(int $length) : ?string {}
+	
+	public function putcsv(array $fields, string $delimiter = ',', string $enclosure = '"', string $escape_char = '\\') : int {}
+	
+	public function getcsv($length, string $delimiter = ',', string $enclosure = '"', string $escape_char = '\\') : ?array  {}	
 }
 
 class File extends \Threaded
 {
-	public static function open() : \FileStream {}
-	
-	public static function popen() : \FileStream {}
+	public function __construct() {
+		throw new Exception("Instantiation of 'File' is not allowed");
+	}
 	
 	/**
 	 * @param string $filename
@@ -892,6 +954,29 @@ class File extends \Threaded
 	 * @param int $maxlen optional
 	 * @return string|NULL
 	 */
-	public static function getContents(string $filename, bool $use_include_path = false, \StreamContext $context = null, int $offset = 0, int $maxlen = -1) : ?string {}
+	public static function getContents(string $filename, bool $use_include_path = false, ?\StreamContext $context = null, int $offset = 0, int $maxlen = -1) : ?string {}
 	
+	public static function putContents(string $filename, $data, int $flags = 0, ?\StreamContext $context = null) : int {}
+	
+	public static function file(string $filename, int $flags = 0, ?\StreamContext $context = null) : ?array {}
+	
+	public static function tempName(string $dir, string $prefix) : ?string {}
+	
+	public static function tempFile() : ?\FileStream {}
+	
+	public static function open(string $filename, string $mode, bool $use_include_path = false, ?\StreamContext $context = null) : ?\FileStream {}
+	
+	public static function popen(string $filename, string $mode) : ?\FileStream {}
+	
+	public static function mkdir(string $pathname, int $mode = 0777, bool $recursive = false, ?\StreamContext $context = null) : bool {}
+	
+	public static function rmdir(string $pathname, ?\StreamContext $context = null) : bool {}
+	
+	public static function readfile(string $pathname, bool $use_include_path = false, ?\StreamContext $context = null) : int {}
+	
+	public static function rename(string $old_name, string $new_name, ?\StreamContext $context = null) : bool {}
+	
+	public static function unlink(string $filename, ?\StreamContext $context = null) : bool {}
+	
+	public static function copy(string $source_file, string $destination_file, ?\StreamContext $context = null) : bool {}
 }

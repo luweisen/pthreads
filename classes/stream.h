@@ -606,7 +606,7 @@ PHP_METHOD(Stream, copyToStream) {
 /* {{{ proto ?StreamFilter Stream::appendFilter(string filtername [, int read_write [, mixed params]]) */
 PHP_METHOD(Stream, appendFilter) {
 	zval *params = NULL;
-	zend_long read_write;
+	zend_long read_write = 0;
 	zend_string *filtername;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|lz", &filtername, &read_write, &params) != SUCCESS) {

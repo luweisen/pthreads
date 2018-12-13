@@ -50,15 +50,15 @@ PHP_METHOD(File, copy);
  * FileStream
  */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_lock, 0, 1, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_lock, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, operation, IS_LONG, 0)
 	ZEND_ARG_INFO(1, wouldblock)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_close, 0, 0, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_close, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_pclose, 0, 0, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_pclose, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_eof, 0, 0, _IS_BOOL, 0)
@@ -86,10 +86,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_write, 0, 1, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, maxlen, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_flush, 0, 0, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_flush, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_rewind, 0, 0, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_rewind, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(FileStream_tell, 0, 0, IS_LONG, 0)
@@ -145,7 +145,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(File_getContents, 0, 1, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, maxlen, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(File_putContents, 0, 2, IS_LONG, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(File_putContents, 0, 2, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
 	ZEND_ARG_INFO(0, data)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
@@ -338,7 +338,7 @@ PHP_METHOD(FileStream, gets) {
    Get a character from file pointer */
 PHP_METHOD(FileStream, getc) {
 	if (zend_parse_parameters_none() == FAILURE) {
-		RETURN_FALSE;
+		RETURN_NULL();
 	}
 
 	pthreads_streams_api_filestream_getc(getThis(), return_value);
@@ -657,14 +657,14 @@ PHP_METHOD(File, putContents) {
 	zval *zcontext = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "Sz|lO", &filename, &data, &flags, &zcontext, pthreads_stream_context_entry) != SUCCESS) {
-		RETURN_NULL();
+		RETURN_LONG(0);
 	}
 
 	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
-		RETURN_NULL();
+		RETURN_LONG(0);
 	}
 
 	pthreads_streams_api_file_put_contents(ZSTR_VAL(filename), ZSTR_LEN(filename), data, flags, zcontext, return_value);

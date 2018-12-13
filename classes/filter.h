@@ -19,11 +19,18 @@
 #define HAVE_PTHREADS_CLASS_FILTER_H
 PHP_METHOD(StreamBucket, __construct);
 
-PHP_METHOD(StreamBucketBrigade, __construct);
+/* {{{ */
+static PHP_METHOD(StreamBucketBrigade, __construct) {
+	zend_throw_error(NULL, "Instantiation of 'StreamBucketBrigade' is not allowed");
+} /* }}} */
 PHP_METHOD(StreamBucketBrigade, append);
 PHP_METHOD(StreamBucketBrigade, prepend);
 PHP_METHOD(StreamBucketBrigade, fetch);
 
+/* {{{ */
+static PHP_METHOD(StreamFilter, __construct) {
+	zend_throw_error(NULL, "Instantiation of 'StreamFilter' is not allowed");
+} /* }}} */
 PHP_METHOD(StreamFilter, remove);
 
 PHP_FUNCTION(user_filter_nop)
@@ -63,27 +70,28 @@ extern zend_function_entry pthreads_streams_filter_methods[];
 #	ifndef HAVE_PTHREADS_CLASS_FILTER
 #	define HAVE_PTHREADS_CLASS_FILTER
 zend_function_entry pthreads_streams_user_filter_class_methods[] = {
-	PHP_NAMED_FE(filter,	PHP_FN(user_filter_nop),		pthreads_user_filter_class_filter)
-	PHP_NAMED_FE(onCreate,	PHP_FN(user_filter_nop),		filters_noargs)
-	PHP_NAMED_FE(onClose,	PHP_FN(user_filter_nop),		filters_noargs)
+	PHP_NAMED_FE(filter       , PHP_FN(user_filter_nop), pthreads_user_filter_class_filter)
+	PHP_NAMED_FE(onCreate     , PHP_FN(user_filter_nop), filters_noargs)
+	PHP_NAMED_FE(onClose      , PHP_FN(user_filter_nop), filters_noargs)
 	PHP_FE_END
 };
 
 zend_function_entry pthreads_streams_bucket_methods[] = {
-	PHP_ME(StreamBucket, __construct, StreamBucket___construct, ZEND_ACC_PUBLIC)
+	PHP_ME(StreamBucket       , __construct , StreamBucket___construct      , ZEND_ACC_PUBLIC)
 	PHP_FE_END
 };
 
 zend_function_entry pthreads_streams_bucketbrigade_methods[] = {
-	PHP_ME(StreamBucketBrigade, __construct, filters_noargs, ZEND_ACC_PUBLIC)
-	PHP_ME(StreamBucketBrigade, append, StreamBucketBrigade_append, ZEND_ACC_PUBLIC)
-	PHP_ME(StreamBucketBrigade, prepend, StreamBucketBrigade_prepend, ZEND_ACC_PUBLIC)
-	PHP_ME(StreamBucketBrigade, fetch, filters_noargs, ZEND_ACC_PUBLIC)
+	PHP_ME(StreamBucketBrigade, __construct , NULL                          , ZEND_ACC_PRIVATE)
+	PHP_ME(StreamBucketBrigade, append      , StreamBucketBrigade_append    , ZEND_ACC_PUBLIC)
+	PHP_ME(StreamBucketBrigade, prepend     , StreamBucketBrigade_prepend   , ZEND_ACC_PUBLIC)
+	PHP_ME(StreamBucketBrigade, fetch       , filters_noargs                , ZEND_ACC_PUBLIC)
 	PHP_FE_END
 };
 
 zend_function_entry pthreads_streams_filter_methods[] = {
-	PHP_ME(StreamFilter, remove, StreamFilter_remove, ZEND_ACC_PUBLIC)
+	PHP_ME(StreamFilter       , __construct , NULL                          , ZEND_ACC_PRIVATE)
+	PHP_ME(StreamFilter       , remove      , StreamFilter_remove           , ZEND_ACC_PUBLIC)
 	PHP_FE_END
 };
 
@@ -98,16 +106,6 @@ PHP_METHOD(StreamBucket, __construct) {
 	}
 
 	pthreads_streams_api_bucket_construct(getThis(), buffer, return_value);
-} /* }}} */
-
-/* {{{ proto StreamBucketBrigade::__construct() */
-PHP_METHOD(StreamBucketBrigade, __construct) {
-
-	if (zend_parse_parameters_none() == FAILURE) {
-		return;
-	}
-
-	// not instantiatable
 } /* }}} */
 
 /* {{{ proto void StreamBucketBrigade::append(Bucket bucket)
