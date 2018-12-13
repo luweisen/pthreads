@@ -99,7 +99,8 @@ int pthreads_stream_filter_prepend_ex(pthreads_stream_filter_chain *chain, pthre
 void _pthreads_stream_filter_append(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);
 int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);
 int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int finish);
-pthreads_stream_filter_t *pthreads_stream_filter_remove(pthreads_stream_filter_t *threaded_filter, int call_dtor);
+pthreads_stream_filter_t *_pthreads_stream_filter_remove(pthreads_stream_filter_t *threaded_filter, int call_dtor);
+#define pthreads_stream_filter_remove(threaded_filter) _pthreads_stream_filter_remove((threaded_filter), 1)
 
 void pthreads_stream_filter_free(pthreads_stream_filter *filter, pthreads_stream_filter_t *threaded_filter);
 pthreads_stream_filter *_pthreads_stream_filter_alloc(const pthreads_stream_filter_ops *fops, void *abstract);

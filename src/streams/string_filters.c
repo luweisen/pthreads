@@ -30,17 +30,14 @@ static pthreads_stream_filter_status_t pthreads_strfilter_rot13_filter(
 	pthreads_stream_bucket_t *threaded_bucket;
 	pthreads_stream_bucket *bucket;
 	size_t consumed = 0;
-	zval zref;
 
 	while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_buckets_in)->head) != NULL) {
-		bucket = pthreads_stream_bucket_fetch(threaded_bucket, &zref);
+		bucket = pthreads_stream_bucket_fetch(threaded_bucket);
 
 		php_strtr(bucket->buf, bucket->buflen, pthreads_rot13_from, pthreads_rot13_to, 52);
 		consumed += bucket->buflen;
 
 		pthreads_stream_bucket_append(threaded_buckets_out, threaded_bucket);
-
-		Z_DELREF_P(&zref);
 	}
 
 	if (bytes_consumed) {
@@ -86,17 +83,14 @@ static pthreads_stream_filter_status_t pthreads_strfilter_toupper_filter(
 	pthreads_stream_bucket_t *threaded_bucket;
 	pthreads_stream_bucket *bucket;
 	size_t consumed = 0;
-	zval zref;
 
 	while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_buckets_in)->head) != NULL) {
-		bucket = pthreads_stream_bucket_fetch(threaded_bucket, &zref);
+		bucket = pthreads_stream_bucket_fetch(threaded_bucket);
 
 		php_strtr(bucket->buf, bucket->buflen, pthreads_lowercase, pthreads_uppercase, 26);
 		consumed += bucket->buflen;
 
 		pthreads_stream_bucket_append(threaded_buckets_out, threaded_bucket);
-
-		Z_DELREF_P(&zref);
 	}
 
 	if (bytes_consumed) {
@@ -118,17 +112,14 @@ static pthreads_stream_filter_status_t pthreads_strfilter_tolower_filter(
 	pthreads_stream_bucket_t *threaded_bucket;
 	pthreads_stream_bucket *bucket;
 	size_t consumed = 0;
-	zval zref;
 
 	while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_buckets_in)->head) != NULL) {
-		bucket = pthreads_stream_bucket_fetch(threaded_bucket, &zref);
+		bucket = pthreads_stream_bucket_fetch(threaded_bucket);
 
 		php_strtr(bucket->buf, bucket->buflen, pthreads_uppercase, pthreads_lowercase, 26);
 		consumed += bucket->buflen;
 
 		pthreads_stream_bucket_append(threaded_buckets_out, threaded_bucket);
-
-		Z_DELREF_P(&zref);
 	}
 
 	if (bytes_consumed) {

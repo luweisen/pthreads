@@ -194,7 +194,7 @@ struct _pthreads_stream  {
 #define PTHREADS_STREAM_STATE_CLOSING		1
 #define PTHREADS_STREAM_STATE_CLOSED		2
 
-#define PTHREADS_IS_INVALID_STREAM(stream) 	((stream) == NULL || (stream)->state != PTHREADS_STREAM_STATE_OPEN)
+#define PTHREADS_IS_INVALID_STREAM(stream) 	((stream) == NULL || ((stream)->state & PTHREADS_STREAM_STATE_CLOSED) == PTHREADS_STREAM_STATE_CLOSED)
 #define PTHREADS_IS_VALID_STREAM(stream) 	!PTHREADS_IS_INVALID_STREAM(stream)
 
 #define PTHREADS_STREAM_PRE_CHECK(stream) do { \

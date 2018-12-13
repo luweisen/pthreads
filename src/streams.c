@@ -68,8 +68,9 @@ int pthreads_streams_aquire_double_lock(pthreads_object_t *object_one, pthreads_
 			if(object_two) {
 				if(!pthreads_monitor_trylock(object_two->monitor)) {
 					pthreads_monitor_unlock(object_one->monitor);
+
+					continue;
 				}
-				continue;
 			}
 			return 1;
 		}
@@ -153,8 +154,6 @@ zend_bool stream_lock(pthreads_stream_t *threaded_stream) {
 }
 
 pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *abstract, const char *mode, const char *key, zend_class_entry *stream_ce) {
-	printf("_pthreads_stream_new \n");
-
 	pthreads_stream_t *threaded_stream = NULL;
 	pthreads_stream *stream = NULL;
 	pthreads_hashtable *streams_list;
@@ -175,10 +174,6 @@ pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *ab
 	stream->writefilters.stream = threaded_stream;
 
 	PTHREADS_FETCH_STREAMS_STREAM(threaded_stream) = stream;
-
-	printf("apply stream(%p) to threaded_stream(%p) base(%p) state(%i) \n", stream, threaded_stream, threaded_stream->store.streams, stream->state);
-
-
 
 	if(key) {
 		streams_list = &PTHREADS_STREAMG(streams_list);
@@ -514,9 +509,6 @@ static int _pthreads_stream_free_persistent(zval *zv, void *pStream)
 
 /* {{{ */
 int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options, int skip_check) {
-
-	printf("_pthreads_stream_close called \n");
-
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	pthreads_stream_t *enclosing_stream;
 	pthreads_hashtable *streams_list;
@@ -526,8 +518,6 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 
 	if(skip_check ? MONITOR_LOCK(threaded_stream) : stream_lock(threaded_stream)) {
 		stream->state |= PTHREADS_STREAM_STATE_CLOSING;
-
-		printf("_pthreads_stream_close state PTHREADS_STREAM_STATE_CLOSING \n");
 
 		if (stream->flags & PTHREADS_STREAM_FLAG_NO_CLOSE) {
 			preserve_handle = 1;
@@ -542,7 +532,6 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 		}
 
 #endif
-
 		if (stream->in_free) {
 			/* hopefully called recursively from the enclosing stream; the pointer was NULLed below */
 			stream_unlock(threaded_stream);
@@ -557,8 +546,6 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 		if (enclosing_stream != NULL && threaded_stream != enclosing_stream && !(close_options & PTHREADS_STREAM_FREE_IGNORE_ENCLOSING) &&
 				(close_options & PTHREADS_STREAM_FREE_CALL_DTOR)) { /* always? */
 			PTHREADS_STREAM_DELETE_ENCLOSING_STREAM(stream);
-
-			printf("calling _pthreads_stream_close 1\n");
 
 			ret = pthreads_stream_close(enclosing_stream,
 							(close_options | PTHREADS_STREAM_FREE_CALL_DTOR));
@@ -588,10 +575,10 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 			/* otherwise, make sure that we don't close the FILE* from a cast */
 		}
 
-	#if PTHREADS_STREAM_DEBUG
-	fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d release_cast=%d\n",
-			stream->ops->label, stream, stream->orig_path, preserve_handle, release_cast);
-	#endif
+#if PTHREADS_STREAM_DEBUG
+fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d release_cast=%d\n",
+		stream->ops->label, stream, stream->orig_path, preserve_handle, release_cast);
+#endif
 
 		if (stream->flags & PTHREADS_STREAM_FLAG_WAS_WRITTEN) {
 			/* make sure everything is saved */
@@ -609,16 +596,12 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 				 */
 				stream->in_free = 0;
 
-				printf("calling _pthreads_stream_close 2\n");
 				ret = fclose(stream->stdiocast);
 
 				stream_unlock(threaded_stream);
 				return ret;
 			}
-
-			printf("calling _pthreads_stream_close 3 %s\n", stream->ops->label);
 			ret = stream->ops->close(threaded_stream, preserve_handle ? 0 : 1);
-			stream->abstract = NULL;
 
 			/* tidy up any FILE* that might have been fdopened */
 			if (!preserve_handle && stream->fclose_stdiocast == PTHREADS_STREAM_FCLOSE_FDOPEN && stream->stdiocast) {
@@ -638,14 +621,12 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 		}
 		stream->state |= PTHREADS_STREAM_STATE_CLOSED;
 
-		printf("calling _pthreads_stream_close unlock\n");
 		stream_unlock(threaded_stream);
 
 		zval sobj;
 		ZVAL_OBJ(&sobj, PTHREADS_STD_P(threaded_stream));
 		zval_ptr_dtor(&sobj);
 	}
-	printf("_pthreads_stream_close finished\n");
 
 	return ret;
 }
@@ -659,14 +640,16 @@ void _pthreads_stream_free(pthreads_stream_t *threaded_stream) {
 
 	if(stream && MONITOR_LOCK(threaded_stream)) {
 		stream->ops->free(threaded_stream, stream->preserve_handle ? 0 : 1);
+		stream->abstract = NULL;
 
 		threaded_context = PTHREADS_STREAM_GET_CONTEXT(stream);
 
 		while (stream->readfilters.head) {
-			pthreads_stream_filter_remove(stream->readfilters.head, 1);
+			pthreads_stream_filter_remove(stream->readfilters.head);
 		}
+
 		while (stream->writefilters.head) {
-			pthreads_stream_filter_remove(stream->writefilters.head, 1);
+			pthreads_stream_filter_remove(stream->writefilters.head);
 		}
 		stream->readfilters.stream = NULL;
 		stream->writefilters.stream = NULL;
@@ -745,10 +728,6 @@ void _pthreads_stream_fill_read_buffer(pthreads_stream_t *threaded_stream, size_
 					/* after this call, bucket is owned by the brigade */
 					pthreads_stream_bucket_append(brig_inp, threaded_bucket);
 
-					zval bval;
-					ZVAL_OBJ(&bval, PTHREADS_STD_P(threaded_bucket));
-					zval_ptr_dtor(&bval);
-
 					flags = PTHREADS_SFS_FLAG_NORMAL;
 				} else {
 					flags = stream->eof ? PTHREADS_SFS_FLAG_FLUSH_CLOSE : PTHREADS_SFS_FLAG_FLUSH_INC;
@@ -768,7 +747,7 @@ void _pthreads_stream_fill_read_buffer(pthreads_stream_t *threaded_stream, size_
 					brig_swap = brig_inp;
 					brig_inp = brig_outp;
 					brig_outp = brig_swap;
-					memset(brig_outp, 0, sizeof(*brig_outp));
+					memset(PTHREADS_FETCH_STREAMS_BRIGADE(brig_outp), 0, sizeof(*PTHREADS_FETCH_STREAMS_BRIGADE(brig_outp)));
 				}
 
 				switch (status) {
@@ -1359,14 +1338,14 @@ static size_t _pthreads_stream_write_filtered(pthreads_stream_t *threaded_stream
 	if (buf) {
 		threaded_bucket = pthreads_stream_bucket_new((char *)buf, count);
 		pthreads_stream_bucket_append(brig_inp, threaded_bucket);
-
-		pthreads_ptr_dtor(threaded_bucket);
 	}
 
 	if(stream_lock(threaded_stream)) {
-		for (threaded_filter = stream->writefilters.head; threaded_filter; filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter), threaded_filter = filter->next) {
+		for (threaded_filter = stream->writefilters.head; threaded_filter; threaded_filter = filter->next) {
+			filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
 			/* for our return value, we are interested in the number of bytes consumed from
 			 * the first filter in the chain */
+
 			status = filter->fops->filter(threaded_stream, threaded_filter, brig_inp, brig_outp,
 					threaded_filter == stream->writefilters.head ? &consumed : NULL, flags);
 
@@ -1379,7 +1358,7 @@ static size_t _pthreads_stream_write_filtered(pthreads_stream_t *threaded_stream
 			brig_swap = brig_inp;
 			brig_inp = brig_outp;
 			brig_outp = brig_swap;
-			memset(brig_outp, 0, sizeof(*brig_outp));
+			memset(PTHREADS_FETCH_STREAMS_BRIGADE(brig_outp), 0, sizeof(*PTHREADS_FETCH_STREAMS_BRIGADE(brig_outp)));
 		}
 
 		switch (status) {

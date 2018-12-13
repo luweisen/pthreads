@@ -59,6 +59,10 @@ pthreads_monitor_t* pthreads_monitor_alloc() {
 	return m;
 }
 
+int pthreads_monitor_get_lock(pthreads_monitor_t *m) {
+	return pthread_mutex_lock(&m->mutex);
+}
+
 int pthreads_monitor_lock(pthreads_monitor_t *m) {
 	return (pthread_mutex_lock(&m->mutex) == 0);
 }

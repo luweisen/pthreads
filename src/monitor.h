@@ -33,6 +33,7 @@ typedef struct _pthreads_monitor_t pthreads_monitor_t;
 #define MONITOR_UNLOCK(object) pthreads_monitor_unlock((object)->monitor)
 
 pthreads_monitor_t* pthreads_monitor_alloc();
+int pthreads_monitor_get_lock(pthreads_monitor_t *m);
 int pthreads_monitor_lock(pthreads_monitor_t *m);
 int pthreads_monitor_trylock(pthreads_monitor_t *m) ;
 int pthreads_monitor_unlock(pthreads_monitor_t *m);

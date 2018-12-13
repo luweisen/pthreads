@@ -43,8 +43,7 @@ int standard_filters_init() {
 	return SUCCESS;
 }
 
-int standard_filters_shutdown()
-{
+int standard_filters_shutdown() {
 	int i;
 
 	for (i = 0; pthreads_standard_filters[i].ops; i++) {

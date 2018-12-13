@@ -504,6 +504,7 @@ static int pthreads_stdiop_close(pthreads_stream_t *threaded_stream, int close_h
 			stream_unlock(threaded_stream);
 			return 0; /* everything should be closed already -> success */
 		}
+
 		if (data->temp_name) {
 #ifdef PHP_WIN32
 			php_win32_ioutil_unlink(ZSTR_VAL(data->temp_name));

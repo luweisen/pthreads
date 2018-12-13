@@ -245,7 +245,7 @@ void pthreads_streams_api_stream_apply_filter_to_stream(int append, zval *object
 			ret = pthreads_stream_filter_prepend_ex(&stream->readfilters, threaded_filter);
 		}
 		if (ret != SUCCESS) {
-			pthreads_stream_filter_remove(threaded_filter, 1);
+			pthreads_stream_filter_remove(threaded_filter);
 			RETURN_NULL();
 		}
 	}
@@ -262,7 +262,7 @@ void pthreads_streams_api_stream_apply_filter_to_stream(int append, zval *object
 			ret = pthreads_stream_filter_prepend_ex(&stream->writefilters, threaded_filter);
 		}
 		if (ret != SUCCESS) {
-			pthreads_stream_filter_remove(threaded_filter, 1);
+			pthreads_stream_filter_remove(threaded_filter);
 			RETURN_NULL();
 		}
 	}

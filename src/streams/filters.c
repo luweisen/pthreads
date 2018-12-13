@@ -106,6 +106,8 @@ pthreads_stream_filter_status_t pthreads_userfilter_filter(
 	zval zpropname;
 	int call_result;
 
+	printf("---------- pthreads_userfilter_filter ---------------- \n");
+
 	/* the userfilter object probably doesn't exist anymore */
 	if (CG(unclean_shutdown)) {
 		return ret;
@@ -458,6 +460,8 @@ int pthreads_stream_filter_prepend_ex(pthreads_stream_filter_chain *chain, pthre
 		chain->head = threaded_filter;
 		filter->chain = chain;
 
+		pthreads_add_ref(threaded_filter);
+
 		pthreads_streams_release_double_lock(threaded_filter, threaded_stream);
 	}
 	return SUCCESS;
@@ -483,6 +487,8 @@ int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthrea
 		}
 		chain->tail = threaded_filter;
 		filter->chain = chain;
+
+		pthreads_add_ref(threaded_filter);
 
 		pthreads_streams_release_double_lock(threaded_filter, threaded_stream);
 	}
@@ -511,6 +517,7 @@ int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthrea
 					while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(brig_inp)->head) != NULL) {
 						pthreads_stream_bucket_destroy(threaded_bucket);
 					}
+
 					while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(brig_outp)->head) != NULL) {
 						pthreads_stream_bucket_destroy(threaded_bucket);
 					}
@@ -651,10 +658,12 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 				stream->readpos = 0;
 				stream->writepos -= stream->readpos;
 			}
+
 			if (flushed_size > (stream->readbuflen - stream->writepos)) {
 				/* Grow the buffer */
 				stream->readbuf = realloc(stream->readbuf, stream->writepos + flushed_size + stream->chunk_size);
 			}
+
 			while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(inp)->head)) {
 				bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 				memcpy(stream->readbuf + stream->writepos, bucket->buf, bucket->buflen);
@@ -678,7 +687,7 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 	return SUCCESS;
 }
 
-pthreads_stream_filter_t *pthreads_stream_filter_remove(pthreads_stream_filter_t *threaded_filter, int call_dtor) {
+pthreads_stream_filter_t *_pthreads_stream_filter_remove(pthreads_stream_filter_t *threaded_filter, int call_dtor) {
 	pthreads_stream_filter *filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
 	pthreads_stream_filter_t *next, *prev;
 
@@ -691,6 +700,7 @@ pthreads_stream_filter_t *pthreads_stream_filter_remove(pthreads_stream_filter_t
 		} else {
 			filter->chain->head = next;
 		}
+
 		if (next) {
 			PTHREADS_FETCH_STREAMS_FILTER(next)->prev = prev;
 		} else {

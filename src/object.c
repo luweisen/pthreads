@@ -101,6 +101,18 @@ void pthreads_ptr_dtor(pthreads_object_t* threaded) {
 	zval obj;
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 	zval_ptr_dtor(&obj);
+}
+
+void pthreads_add_ref(pthreads_object_t* threaded) {
+	zval obj;
+	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
+	Z_ADDREF_P(&obj);
+}
+
+void pthreads_del_ref(pthreads_object_t* threaded) {
+	zval obj;
+	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
+	Z_DELREF_P(&obj);
 } /* }}} */
 
 zend_object_iterator* pthreads_object_iterator_create(zend_class_entry *ce, zval *object, int by_ref) {
@@ -329,11 +341,12 @@ int pthreads_connect(pthreads_object_t* source, pthreads_object_t* destination) 
 	if (source && destination) {
 		pthreads_ident_t destCreator = destination->creator;
 
-		printf("pthreads_connect");
-
 		if (PTHREADS_IS_NOT_CONNECTION(destination)) {
-			if(PTHREADS_IS_STREAMS(destination)) {
 
+			if(PTHREADS_IS_STREAMS(destination)) {
+#if PTHREADS_STREAM_DEBUG
+	printf("connecting stream object std(%p) threaded(%p) type: %s \n", PTHREADS_STD_P(destination), destination, pthreads_get_object_name(source));
+#endif
 				if(PTHREADS_IS_STREAM_CONTEXT(destination)) {
 					pthreads_stream_context_free(PTHREADS_FETCH_STREAMS_CONTEXT(destination));
 				} else if(PTHREADS_IS_STREAM_WRAPPER(destination)) {
@@ -404,8 +417,6 @@ static void pthreads_base_ctor(pthreads_object_t* base, zend_class_entry *entry)
 	zend_object_std_init(&base->std, entry);
 	object_properties_init(&base->std, entry);
 
-	printf("pthreads_base_ctor %p \n", &base->std);
-
 	base->creator.ls = TSRMLS_CACHE;
 	base->creator.id = pthreads_self();
 	base->options = PTHREADS_INHERIT_ALL;
@@ -414,9 +425,10 @@ static void pthreads_base_ctor(pthreads_object_t* base, zend_class_entry *entry)
 		base->monitor = pthreads_monitor_alloc();
 
 		if (PTHREADS_IS_STREAMS(base)) {
+#if PTHREADS_STREAM_DEBUG
+	printf("creating stream object std(%p) threaded(%p) type: %s \n", PTHREADS_STD_P(base), base, pthreads_get_object_name(base));
+#endif
 			base->store.streams = pthreads_streams_alloc();
-
-			printf("creating stream base(%p) \n", base->store.streams);
 
 			if (PTHREADS_IS_STREAM_CONTEXT(base)) {
 				PTHREADS_FETCH_STREAMS_CONTEXT(base) = pthreads_stream_context_alloc();
@@ -445,20 +457,17 @@ static void pthreads_base_ctor(pthreads_object_t* base, zend_class_entry *entry)
 
 /* {{{ */
 void pthreads_base_free(zend_object *object) {
-
-	printf("pthreads_base_free %p \n", object);
-
 	pthreads_object_t* base = PTHREADS_FETCH_FROM(object);
 
 	if (PTHREADS_IS_NOT_CONNECTION(base)) {
+
+
 		if(PTHREADS_IS_STREAMS(base)) {
-
-			printf("pthreads_base_free base(%p) \n", base->store.streams);
-
+#if PTHREADS_STREAM_DEBUG
+	printf("freeing stream object std(%p) threaded(%p) type: %s \n", object, base, pthreads_get_object_name(base));
+#endif
 			if(PTHREADS_IS_STREAM(base)) {
 				pthreads_stream * stream = PTHREADS_FETCH_STREAMS_STREAM(base);
-
-				printf("pthreads_base_free free stream(%p) base(%p)  \n", stream, base->store.streams);
 
 				if(PTHREADS_IS_VALID_STREAM(stream)) {
 					pthreads_stream_close(base, PTHREADS_STREAM_FREE_CLOSE);
@@ -499,7 +508,6 @@ void pthreads_base_free(zend_object *object) {
 				free(base->running);
 			}
 		}
-
 		pthreads_monitor_free(base->monitor);
 	}
 

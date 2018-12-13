@@ -30,7 +30,6 @@
 #	include <src/streams/buckets.h>
 #endif
 
-
 pthreads_stream_bucket_brigade *pthreads_stream_bucket_brigade_alloc() {
 	pthreads_stream_bucket_brigade *brigade;
 
@@ -66,52 +65,36 @@ void pthreads_stream_bucket_free(pthreads_stream_bucket *bucket) {
 	free(bucket);
 }
 
-pthreads_stream_bucket *pthreads_stream_bucket_fetch(pthreads_stream_bucket_t *threaded_bucket, zval *ref) {
-	ZVAL_OBJ(ref, PTHREADS_STD_P(threaded_bucket));
-	Z_ADDREF_P(ref);
-
+pthreads_stream_bucket *pthreads_stream_bucket_fetch(pthreads_stream_bucket_t *threaded_bucket) {
 	pthreads_stream_bucket_unlink(threaded_bucket);
-
 	return PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 }
 
 void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket) {
 	pthreads_stream_bucket_brigade *brigade = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_brigade);
 	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
-	pthreads_stream_bucket *head;
-	pthreads_stream_bucket_t *threaded_head;
+	pthreads_stream_bucket *head = NULL;
 
 	if(pthreads_streams_aquire_double_lock(threaded_bucket, threaded_brigade)) {
 		if(bucket->brigade != NULL && threaded_brigade != bucket->brigade) {
-
-			// Error
+			// Error, bucket already prepended onto another brigade
 
 			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
 			return;
 		}
-		threaded_head = brigade->head;
-
-		if(!threaded_head) {
-			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
-			return;
-		}
-		head = PTHREADS_FETCH_STREAMS_BUCKET(threaded_head);
-
-		if(head == bucket) {
-			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
-			return;
-		}
-		bucket->next = threaded_head;
+		bucket->next = brigade->head;
 		bucket->prev = NULL;
+
+		if(brigade->head != NULL) {
+			head = PTHREADS_FETCH_STREAMS_BUCKET(brigade->head);
+		}
 
 		if (head) {
 			head->prev = threaded_bucket;
 		} else {
 			brigade->tail = threaded_bucket;
 		}
-		zval obj;
-		ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded_bucket));
-		Z_ADDREF(obj);
+		pthreads_add_ref(threaded_bucket);
 
 		brigade->head = threaded_bucket;
 		bucket->brigade = threaded_brigade;
@@ -123,40 +106,34 @@ void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_b
 void pthreads_stream_bucket_append(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket) {
 	pthreads_stream_bucket_brigade *brigade = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_brigade);
 	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
-	pthreads_stream_bucket *tail;
+	pthreads_stream_bucket *tail = NULL;
 	pthreads_stream_bucket_t *threaded_tail;
 
 	if(pthreads_streams_aquire_double_lock(threaded_bucket, threaded_brigade)) {
+
 		if(bucket->brigade != NULL && threaded_brigade != bucket->brigade) {
-
-			// Error
-
+			// Error, bucket already appended onto another brigade
 			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
 			return;
 		}
-		threaded_tail = brigade->tail;
 
-		if (!threaded_tail) {
+		if(brigade->tail == threaded_bucket) {
 			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
 			return;
 		}
-		tail = PTHREADS_FETCH_STREAMS_BUCKET(threaded_tail);
-
-		if (tail == bucket) {
-			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
-			return;
-		}
-		bucket->prev = threaded_tail;
+		bucket->prev = brigade->tail;
 		bucket->next = NULL;
+
+		if(brigade->tail != NULL) {
+			tail = PTHREADS_FETCH_STREAMS_BUCKET(brigade->tail);
+		}
 
 		if (tail) {
 			tail->next = threaded_bucket;
 		} else {
 			brigade->head = threaded_bucket;
 		}
-		zval obj;
-		ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded_bucket));
-		Z_ADDREF(obj);
+		pthreads_add_ref(threaded_bucket);
 
 		brigade->tail = threaded_bucket;
 		bucket->brigade = threaded_brigade;
@@ -184,41 +161,14 @@ void pthreads_stream_bucket_unlink(pthreads_stream_bucket_t *threaded_bucket) {
 		bucket->next = bucket->prev = NULL;
 
 		pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
+
+		pthreads_del_ref(threaded_bucket);
 	}
 }
 
 void pthreads_stream_bucket_destroy(pthreads_stream_bucket_t *threaded_bucket) {
-	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
-	pthreads_stream_bucket_brigade_t *threaded_brigade = bucket->brigade;
-	int destruct = 0;
-
-	if(pthreads_streams_aquire_double_lock(threaded_bucket, threaded_brigade)) {
-		if (bucket->prev) {
-			PTHREADS_FETCH_STREAMS_BUCKET(bucket->prev)->next = bucket->next;
-		} else if (bucket->brigade) {
-			PTHREADS_FETCH_STREAMS_BRIGADE(bucket->brigade)->head = bucket->next;
-		}
-		if (bucket->next) {
-			PTHREADS_FETCH_STREAMS_BUCKET(bucket->next)->prev = bucket->prev;
-		} else if (bucket->brigade) {
-			PTHREADS_FETCH_STREAMS_BRIGADE(bucket->brigade)->tail = bucket->prev;
-		}
-		zval obj;
-		ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded_bucket));
-
-		if(Z_REFCOUNT(obj) <= 1) {
-			destruct = 1;
-		} else {
-			Z_DELREF(obj);
-		}
-		bucket->brigade = NULL;
-		bucket->next = bucket->prev = NULL;
-
-		pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
-	}
-
-	if(destruct)
-		pthreads_ptr_dtor(threaded_bucket);
+	pthreads_stream_bucket_unlink(threaded_bucket);
+	pthreads_ptr_dtor(threaded_bucket);
 }
 
 #endif

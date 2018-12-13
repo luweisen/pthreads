@@ -498,8 +498,8 @@ static inline int sapi_cli_deactivate(void)
 PHP_MSHUTDOWN_FUNCTION(pthreads)
 {
 	if (pthreads_instance == TSRMLS_CACHE) {
-		pthreads_globals_shutdown();
 		pthreads_stream_globals_shutdown();
+		pthreads_globals_shutdown();
 
 		if (memcmp(sapi_module.name, ZEND_STRL("cli")) == SUCCESS) {
 			sapi_module.deactivate = sapi_cli_deactivate;

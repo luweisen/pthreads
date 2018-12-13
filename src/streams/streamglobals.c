@@ -61,7 +61,7 @@ static void pthreads_stream_wrapper_dtor(zval *item) {
 
 /* {{{ */
 int pthreads_stream_globals_is_main_context() {
-	return (!PTHREADS_STREAMG(creatorId) || PTHREADS_STREAMG(creatorId) == pthreads_self()) ? SUCCESS : FAILURE;
+	return (!PTHREADS_STREAMG(creatorId) || PTHREADS_STREAMG(creatorId) == pthreads_self()) ? 1 : 0;
 } /* }}} */
 
 /* {{{ */
@@ -85,7 +85,6 @@ void pthreads_stream_globals_init() {
 /* {{{ */
 int pthreads_stream_globals_object_init() {
 	if(PTHREADS_STREAMG(creatorId) == 0) {
-
 		PTHREADS_STREAMG(creatorId)				 = pthreads_self();
 		PTHREADS_STREAMG(default_context)        = pthreads_object_init(pthreads_stream_context_entry);
 

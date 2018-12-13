@@ -29,11 +29,6 @@
 #ifndef HAVE_PTHREADS_SOCKET_H
 #	include <src/socket.h>
 #endif
-/*
-#ifndef HAVE_PTHREADS_STORE_H
-#	include <src/store.h>
-#endif
-*/
 
 typedef union _pthreads_streams_t pthreads_streams_t;
 
@@ -141,6 +136,29 @@ static inline pthreads_object_t* _pthreads_fetch_object(zend_object *object) {
 												|| PTHREADS_IS_STREAM_BUCKET(t) 		\
 												|| PTHREADS_IS_STREAM_BRIGADE(t))
 #define PTHREADS_IS_NOT_STREAMS(t)   		(!PTHREADS_IS_STREAMS(t)) /* }}} */
+
+static char *pthreads_get_object_name(pthreads_object_t* object) {
+	if(PTHREADS_IS_SOCKET(object))
+		return "socket";
+	else if(PTHREADS_IS_THREAD(object))
+		return "thread";
+	else if(PTHREADS_IS_WORKER(object))
+		return "worker";
+	else if(PTHREADS_IS_THREADED(object))
+		return "threaded";
+	else if(PTHREADS_IS_STREAM(object))
+		return "stream";
+	else if(PTHREADS_IS_STREAM_CONTEXT(object))
+		return "streamcontext";
+	else if(PTHREADS_IS_STREAM_FILTER(object))
+		return "streamfilter";
+	else if(PTHREADS_IS_STREAM_WRAPPER(object))
+		return "streamwrapper";
+	else if(PTHREADS_IS_STREAM_BUCKET(object))
+		return "streambucket";
+	else if(PTHREADS_IS_STREAM_BRIGADE(object))
+		return "streambrigade";
+}
 
 /* {{{ pthread_self wrapper */
 static inline ulong pthreads_self() {

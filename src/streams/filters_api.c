@@ -76,7 +76,6 @@ void pthreads_streams_api_bucket_fetch(zval *object, zval *return_value) {
 			threaded_bucket = brigade->head;
 
 			ZVAL_OBJ(return_value, PTHREADS_STD_P(threaded_bucket));
-			Z_ADDREF_P(return_value); // set ref before *unlink call!
 
 			pthreads_stream_bucket_unlink(threaded_bucket);
 
@@ -126,7 +125,7 @@ void pthreads_streams_api_filter_remove(zval *object, zval *return_value) {
 	pthreads_stream_filter_t *threaded_filter = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 
 	// pthreads_stream_filter_remove() returns NULL in case of success!
-	if(threaded_filter && !pthreads_stream_filter_remove(threaded_filter, 1)) {
+	if(threaded_filter && !pthreads_stream_filter_remove(threaded_filter)) {
 		RETURN_TRUE;
 	}
 	RETURN_FALSE;
