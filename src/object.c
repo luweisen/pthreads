@@ -342,7 +342,6 @@ int pthreads_connect(pthreads_object_t* source, pthreads_object_t* destination) 
 		pthreads_ident_t destCreator = destination->creator;
 
 		if (PTHREADS_IS_NOT_CONNECTION(destination)) {
-
 			if(PTHREADS_IS_STREAMS(destination)) {
 #if PTHREADS_STREAM_DEBUG
 	printf("connecting stream object std(%p) threaded(%p) type: %s \n", PTHREADS_STD_P(destination), destination, pthreads_get_object_name(source));
@@ -460,8 +459,6 @@ void pthreads_base_free(zend_object *object) {
 	pthreads_object_t* base = PTHREADS_FETCH_FROM(object);
 
 	if (PTHREADS_IS_NOT_CONNECTION(base)) {
-
-
 		if(PTHREADS_IS_STREAMS(base)) {
 #if PTHREADS_STREAM_DEBUG
 	printf("freeing stream object std(%p) threaded(%p) type: %s \n", object, base, pthreads_get_object_name(base));
@@ -469,7 +466,7 @@ void pthreads_base_free(zend_object *object) {
 			if(PTHREADS_IS_STREAM(base)) {
 				pthreads_stream * stream = PTHREADS_FETCH_STREAMS_STREAM(base);
 
-				if(PTHREADS_IS_VALID_STREAM(stream)) {
+				if(!PTHREADS_IS_STREAM_CLOSING(stream)) {
 					pthreads_stream_close(base, PTHREADS_STREAM_FREE_CLOSE);
 				}
 				pthreads_stream_free(base);
