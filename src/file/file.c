@@ -338,7 +338,7 @@ void pthreads_fgetcsv(pthreads_stream_t *threaded_stream, char delimiter, char e
 
 	/* reserve workspace for building each individual field */
 	temp_len = buf_len;
-	temp = emalloc(temp_len + line_end_len + 1);
+	temp = malloc(temp_len + line_end_len + 1);
 
 	/* Initialize return array */
 	array_init(return_value);
@@ -417,15 +417,15 @@ void pthreads_fgetcsv(pthreads_stream_t *threaded_stream, char delimiter, char e
 										goto quit_loop_2;
 									}
 									zend_array_destroy(Z_ARR_P(return_value));
-									RETVAL_FALSE;
+									RETVAL_NULL();
 									goto out;
 								}
 								temp_len += new_len;
-								new_temp = erealloc(temp, temp_len);
+								new_temp = realloc(temp, temp_len);
 								tptr = new_temp + (size_t)(tptr - temp);
 								temp = new_temp;
 
-								efree(buf);
+								free(buf);
 								buf_len = new_len;
 								bptr = buf = new_buf;
 								hunk_begin = buf;
@@ -569,9 +569,9 @@ void pthreads_fgetcsv(pthreads_stream_t *threaded_stream, char delimiter, char e
 	} while (inc_len > 0);
 
 out:
-	efree(temp);
+	free(temp);
 	if (threaded_stream) {
-		efree(buf);
+		free(buf);
 	}
 }
 /* }}} */

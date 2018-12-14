@@ -79,12 +79,14 @@ void pthreads_streams_api_filestream_gets(zval *object, int argc, zend_long len,
 	if (argc == 0) {
 		/* ask streams to give us a buffer of an appropriate size */
 		buf = pthreads_stream_get_line(threaded_stream, NULL, 0, &line_len);
+
 		if (buf == NULL) {
 			RETURN_NULL();
 		}
 		// TODO: avoid reallocation ???
 		RETVAL_STRINGL(buf, line_len);
-		efree(buf);
+
+		free(buf);
 	} else if (argc > 0) {
 		if (len <= 0) {
 			php_error_docref(NULL, E_WARNING, "Length parameter must be greater than 0");
@@ -138,15 +140,13 @@ void pthreads_streams_api_filestream_getss(zval *object, int argc, zend_long byt
 		}
 
 		len = (size_t) bytes;
-		buf = safe_emalloc(sizeof(char), (len + 1), 0);
-		/*needed because recv doesn't set null char at end*/
-		memset(buf, 0, len + 1);
+		buf = calloc(sizeof(char), (len + 1));
 	}
 
 	if(stream_lock(threaded_stream)) {
 		if ((retval = pthreads_stream_get_line(threaded_stream, buf, len, &actual_len)) == NULL)	{
 			if (buf != NULL) {
-				efree(buf);
+				free(buf);
 			}
 			stream_unlock(threaded_stream);
 			RETURN_NULL();
@@ -159,7 +159,10 @@ void pthreads_streams_api_filestream_getss(zval *object, int argc, zend_long byt
 
 		stream_unlock(threaded_stream);
 	}
-	efree(retval);
+
+	if(retval != NULL) {
+		free(retval);
+	}
 }
 
 void pthreads_streams_api_filestream_scanf(zval *object, zend_string *format, zval *args, int argc, zval *return_value) {
@@ -178,7 +181,7 @@ void pthreads_streams_api_filestream_scanf(zval *object, zend_string *format, zv
 
 	result = php_sscanf_internal(buf, ZSTR_VAL(format), argc, args, 0, return_value);
 
-	efree(buf);
+	free(buf);
 
 	if (SCAN_ERROR_WRONG_PARAM_COUNT == result) {
 		WRONG_PARAM_COUNT;
@@ -372,9 +375,9 @@ void pthreads_streams_api_filestream_getcsv(zval *object, zend_long len, char de
 			RETURN_NULL();
 		}
 	} else {
-		buf = emalloc(len + 1);
+		buf = malloc(len + 1);
 		if (pthreads_stream_get_line(threaded_stream, buf, len + 1, &buf_len) == NULL) {
-			efree(buf);
+			free(buf);
 			RETURN_NULL();
 		}
 	}
@@ -554,13 +557,8 @@ void pthreads_streams_api_file_get_contents(zend_string *filename, zend_bool use
 void pthreads_streams_api_file_put_contents(char *filename, size_t filename_len, zval *data, zend_long flags, zval *zcontext, zval *return_value) {
 	pthreads_stream_context_t *threaded_context = pthreads_stream_context_from_zval(zcontext, flags & PTHREADS_FILE_NO_DEFAULT_CONTEXT);
 	pthreads_stream_t *threaded_stream;
-	pthreads_stream_t *threaded_srcstream = NULL;
 	char mode[3] = "wb";
 	size_t numbytes = 0;
-
-	if (Z_TYPE_P(data) == IS_RESOURCE) {
-		threaded_srcstream = PTHREADS_FETCH_FROM(Z_OBJ_P(data));
-	}
 
 	if (flags & PTHREADS_FILE_APPEND) {
 		mode[0] = 'a';
@@ -593,19 +591,6 @@ void pthreads_streams_api_file_put_contents(char *filename, size_t filename_len,
 	}
 
 	switch (Z_TYPE_P(data)) {
-		case IS_RESOURCE: {
-			size_t len;
-			if (pthreads_stream_copy_to_stream_ex(threaded_srcstream, threaded_stream, PTHREADS_STREAM_COPY_ALL, &len) != SUCCESS) {
-				numbytes = -1;
-			} else {
-				if (len > ZEND_LONG_MAX) {
-					php_error_docref(NULL, E_WARNING, "content truncated from %zu to " ZEND_LONG_FMT " bytes", len, ZEND_LONG_MAX);
-					len = ZEND_LONG_MAX;
-				}
-				numbytes = len;
-			}
-			break;
-		}
 		case IS_NULL:
 		case IS_LONG:
 		case IS_DOUBLE:
@@ -647,6 +632,22 @@ void pthreads_streams_api_file_put_contents(char *filename, size_t filename_len,
 			break;
 
 		case IS_OBJECT:
+			if(instanceof_function(Z_OBJCE_P(data), pthreads_stream_entry)) {
+				size_t len;
+				pthreads_stream_t *threaded_srcstream = PTHREADS_FETCH_FROM(Z_OBJ_P(data));
+
+				if (pthreads_stream_copy_to_stream_ex(threaded_srcstream, threaded_stream, PTHREADS_STREAM_COPY_ALL, &len) != SUCCESS) {
+					numbytes = -1;
+				} else {
+					if (len > ZEND_LONG_MAX) {
+						php_error_docref(NULL, E_WARNING, "content truncated from %zu to " ZEND_LONG_FMT " bytes", len, ZEND_LONG_MAX);
+						len = ZEND_LONG_MAX;
+					}
+					numbytes = len;
+				}
+				break;
+			}
+
 			if (Z_OBJ_HT_P(data) != NULL) {
 				zval out;
 
