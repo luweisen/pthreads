@@ -774,7 +774,7 @@ void pthreads_streams_api_file_temp_name(char *dir, char *prefix, size_t prefix_
 		close(fd);
 		RETVAL_STR(opened_path);
 	}
-	zend_string_release_ex(p, 0);
+	zend_string_release(p);
 }
 
 void pthreads_streams_api_file_temp_file(zval *return_value) {
@@ -994,14 +994,14 @@ void pthreads_streams_api_file_sockopen(zend_string *host, zend_long port, zval 
 			zval_ptr_dtor(zerrstr);
 			ZVAL_STR(zerrstr, errstr);
 		} else if (!zerrstr && errstr) {
-			zend_string_release_ex(errstr, 0);
+			zend_string_release(errstr);
 		}
 
 		RETURN_NULL();
 	}
 
 	if (errstr) {
-		zend_string_release_ex(errstr, 0);
+		zend_string_release(errstr);
 	}
 
 	pthreads_stream_to_zval(threaded_stream, return_value);

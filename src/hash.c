@@ -107,8 +107,6 @@ zval *_pthreads_volatile_map_to_array(pthreads_object_t *map, zval *array) {
 	zend_ulong idx;
 	pthreads_storage *storage;
 
-	pthreads_store_sync_threaded(map);
-
 	array_init(array);
 
 	ZEND_HASH_FOREACH_KEY_PTR(map->store.props, idx, name, storage) {

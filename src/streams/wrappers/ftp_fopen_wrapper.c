@@ -590,7 +590,7 @@ static size_t pthreads_ftp_dirstream_read(pthreads_stream_t *threaded_stream, ch
 		tmp_len = MIN(sizeof(ent->d_name), ZSTR_LEN(basename) - 1);
 		memcpy(ent->d_name, ZSTR_VAL(basename), tmp_len);
 		ent->d_name[tmp_len - 1] = '\0';
-		zend_string_release_ex(basename, 0);
+		zend_string_release(basename);
 
 		/* Trim off trailing whitespace characters */
 		while (tmp_len > 0 &&

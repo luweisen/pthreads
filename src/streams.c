@@ -145,8 +145,10 @@ zend_bool stream_lock(pthreads_stream_t *threaded_stream) {
 		PTHREADS_STREAM_CORRUPTED();
 	}
 	PTHREADS_STREAM_PRE_CHECK(stream);
+	//printf("stream_lock requested (%i) \n", (ulong) pthread_self());
 	locked = MONITOR_LOCK(threaded_stream);
 
+	//printf("gathered stream_lock (%i) \n", (ulong) pthread_self());
 	if(locked) {
 		PTHREADS_STREAM_POST_CHECK(threaded_stream, stream);
 	}
@@ -227,7 +229,7 @@ pthreads_object_t *pthreads_stream_read_threaded_property(pthreads_object_t *thr
 	ZVAL_LONG(&key, property);
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 
-	if(pthreads_store_read(&obj, &key, 0, &read) && !ZVAL_IS_NULL(&read)) {
+	if(pthreads_store_read(&obj, &key, 0, &read) == SUCCESS && !ZVAL_IS_NULL(&read)) {
 		return PTHREADS_FETCH_FROM(Z_OBJ(read));
 	}
 	return NULL;
@@ -243,7 +245,7 @@ int pthreads_stream_write_threaded_property(pthreads_object_t *threaded, int pro
 	ZVAL_OBJ(&write, PTHREADS_STD_P(val));
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 
-	return pthreads_store_read(&obj, &key, 0, &write);
+	return pthreads_store_write(&obj, &key, &write);
 }
 
 int pthreads_stream_delete_threaded_property(pthreads_object_t *threaded, int property) {
@@ -294,21 +296,18 @@ void pthreads_stream_context_free(pthreads_stream_context *context) {
 	free(context);
 }
 
-pthreads_stream_notifier *pthreads_stream_notification_alloc(void)
-{
+pthreads_stream_notifier *pthreads_stream_notification_alloc(void) {
 	return calloc(1, sizeof(pthreads_stream_notifier));
 }
 
-void pthreads_stream_notification_free(pthreads_stream_notifier *notifier)
-{
+void pthreads_stream_notification_free(pthreads_stream_notifier *notifier) {
 	if (notifier->dtor) {
 		notifier->dtor(notifier);
 	}
 	free(notifier);
 }
 
-pthreads_stream_context_t *pthreads_stream_context_set(pthreads_stream_t *threaded_stream, pthreads_stream_context_t *threaded_context)
-{
+pthreads_stream_context_t *pthreads_stream_context_set(pthreads_stream_t *threaded_stream, pthreads_stream_context_t *threaded_context) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	pthreads_stream_context_t *oldcontext = PTHREADS_STREAM_GET_CONTEXT(stream);
 
@@ -329,14 +328,23 @@ zval *pthreads_stream_context_get_option(pthreads_stream_context_t *threaded_con
 	zval *wrapperhash, *result;
 	zval rv, ret, options;
 
+	ZVAL_NULL(&rv);
+	ZVAL_NULL(&ret);
+
 	if (MONITOR_LOCK(threaded_context)) {
 		threaded_options = context->options;
 		ZVAL_OBJ(&options, PTHREADS_STD_P(threaded_options));
 
-		if (NULL == (wrapperhash = zend_read_property(pthreads_volatile_entry, &options, wrappername, strlen(wrappername), 1, &rv))) {
+		wrapperhash = zend_read_property(pthreads_volatile_entry, &options, wrappername, strlen(wrappername), 1, &rv);
+
+		if (NULL == wrapperhash || Z_ISNULL_P(wrapperhash)) {
 			result = NULL;
 		} else {
 			result = zend_read_property(pthreads_volatile_entry, wrapperhash, optionname, strlen(optionname), 1, &ret);
+
+			if (NULL != result && Z_ISNULL_P(result)) {
+				result = NULL;
+			}
 		}
 		MONITOR_UNLOCK(threaded_context);
 	}
@@ -349,14 +357,17 @@ int pthreads_stream_context_set_option(pthreads_stream_context_t *threaded_conte
 	zval *wrapperhash, *category;
 	zval rv, options;
 
+	ZVAL_NULL(&rv);
+
 	if (MONITOR_LOCK(threaded_context)) {
 		threaded_options = context->options;
 		ZVAL_OBJ(&options, PTHREADS_STD_P(threaded_options));
 
 		wrapperhash = zend_read_property(pthreads_volatile_map_entry, &options, wrappername, strlen(wrappername), 1, &rv);
-		if (NULL == wrapperhash) {
-			ZVAL_OBJ(category, PTHREADS_STD_P(pthreads_object_init(pthreads_volatile_map_entry)));
-			zend_update_property(pthreads_volatile_map_entry, &options, (char*)wrappername, strlen(wrappername), category);
+
+		if (NULL == wrapperhash || Z_ISNULL_P(wrapperhash)) {
+			ZVAL_OBJ(wrapperhash, PTHREADS_STD_P(pthreads_object_init(pthreads_volatile_map_entry)));
+			zend_update_property(pthreads_volatile_map_entry, &options, (char*)wrappername, strlen(wrappername), wrapperhash);
 		}
 		ZVAL_DEREF(optionvalue);
 		Z_TRY_ADDREF_P(optionvalue);
@@ -677,14 +688,15 @@ void _pthreads_stream_free(pthreads_stream_t *threaded_stream) {
 			free(stream->orig_path);
 			stream->orig_path = NULL;
 		}
-		pthreads_ptr_dtor(stream->storage);
-
-		free(stream);
 
 		if(threaded_context) {
 			PTHREADS_STREAM_DELETE_CONTEXT(stream);
 			pthreads_ptr_dtor(threaded_context);
 		}
+		pthreads_ptr_dtor(stream->storage);
+
+		free(stream);
+
 		PTHREADS_FETCH_STREAMS_STREAM(threaded_stream) = NULL;
 
 		MONITOR_UNLOCK(threaded_stream);
@@ -912,6 +924,7 @@ int _pthreads_stream_eof(pthreads_stream_t *threaded_stream) {
 	if(stream_lock(threaded_stream)) {
 		/* if there is data in the buffer, it's not EOF */
 		if (stream->writepos - stream->readpos > 0) {
+			stream_unlock(threaded_stream);
 			return 0;
 		}
 

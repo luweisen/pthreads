@@ -183,7 +183,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 							flags & PTHREADS_STREAM_XPORT_CONNECT_ASYNC ? 1 : 0,
 							timeout, &error_text, error_code)) {
 
-					ERR_RETURN(error_string, error_text, "connect() failed: %s");
+					PTHREADS_ERR_RETURN(error_string, error_text, "connect() failed: %s");
 
 					failed = 1;
 				}
@@ -193,7 +193,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 			/* server */
 			if (flags & PTHREADS_STREAM_XPORT_BIND) {
 				if (0 != pthreads_stream_xport_bind(threaded_stream, name, namelen, &error_text)) {
-					ERR_RETURN(error_string, error_text, "bind() failed: %s");
+					PTHREADS_ERR_RETURN(error_string, error_text, "bind() failed: %s");
 					failed = 1;
 				} else if (flags & PTHREADS_STREAM_XPORT_LISTEN) {
 					zval *zbacklog = NULL;
@@ -206,7 +206,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 					}
 
 					if (0 != pthreads_stream_xport_listen(threaded_stream, backlog, &error_text)) {
-						ERR_RETURN(error_string, error_text, "listen() failed: %s");
+						PTHREADS_ERR_RETURN(error_string, error_text, "listen() failed: %s");
 						failed = 1;
 					}
 				}

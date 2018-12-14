@@ -183,7 +183,7 @@ static pthreads_stream_t *pthreads_stream_url_wrap_http_ex(pthreads_stream_wrapp
 
 	if (errstr) {
 		pthreads_stream_wrapper_log_error(threaded_wrapper, options, "%s", ZSTR_VAL(errstr));
-		zend_string_release_ex(errstr, 0);
+		zend_string_release(errstr);
 		errstr = NULL;
 	}
 
@@ -481,7 +481,7 @@ finish:
 
 		}
 		if (tmp) {
-			zend_string_release_ex(tmp, 0);
+			zend_string_release(tmp);
 		}
 	}
 
@@ -825,7 +825,7 @@ finish:
 						if (!s) {
 							s = ZSTR_VAL(resource->path);
 							if (!ZSTR_LEN(resource->path)) {
-								zend_string_release_ex(resource->path, 0);
+								zend_string_release(resource->path);
 								resource->path = zend_string_init("/", 1, 0);
 								s = ZSTR_VAL(resource->path);
 							} else {

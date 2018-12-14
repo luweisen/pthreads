@@ -716,6 +716,58 @@ class Streams
 	public static function registerFilter(string $filtername, string $classname) : bool {}
 }
 
+class File extends \Threaded
+{
+	public function __construct() {
+		throw new Exception("Instantiation of 'File' is not allowed");
+	}
+	
+	/**
+	 * @param string $filename
+	 * @param bool $use_include_path optional
+	 * @return array|NULL
+	 */
+	public static function getMetaTags(string $filename, bool $use_include_path) : ?array {}
+	
+	/**
+	 * @param string $filename
+	 * @param bool $use_include_path optional
+	 * @param StreamContext $context optional
+	 * @param int $offset optional
+	 * @param int $maxlen optional
+	 * @return string|NULL
+	 */
+	public static function getContents(string $filename, bool $use_include_path = false, ?\StreamContext $context = null, int $offset = 0, int $maxlen = -1) : ?string {}
+	
+	public static function putContents(string $filename, $data, int $flags = 0, ?\StreamContext $context = null) : int {}
+	
+	public static function file(string $filename, int $flags = 0, ?\StreamContext $context = null) : ?array {}
+	
+	public static function tempName(string $dir, string $prefix) : ?string {}
+	
+	public static function tempFile() : ?\FileStream {}
+	
+	public static function open(string $filename, string $mode, bool $use_include_path = false, ?\StreamContext $context = null) : ?\FileStream {}
+	
+	public static function popen(string $filename, string $mode) : ?\FileStream {}
+	
+	public static function mkdir(string $pathname, int $mode = 0777, bool $recursive = false, ?\StreamContext $context = null) : bool {}
+	
+	public static function rmdir(string $pathname, ?\StreamContext $context = null) : bool {}
+	
+	public static function readfile(string $pathname, bool $use_include_path = false, ?\StreamContext $context = null) : int {}
+	
+	public static function rename(string $old_name, string $new_name, ?\StreamContext $context = null) : bool {}
+	
+	public static function unlink(string $filename, ?\StreamContext $context = null) : bool {}
+	
+	public static function copy(string $source_file, string $destination_file, ?\StreamContext $context = null) : bool {}
+	
+	public static function sockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream {}
+	
+	public static function psockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream {}
+}
+
 class Stream extends \Threaded
 {
 	public function __construct() {
@@ -861,33 +913,6 @@ class pthreads_user_filter extends \Volatile
 	public function filter(\StreamBucketBrigade $in, \StreamBucketBrigade $out, int &$consumed, int $closing) {}
 }
 
-class SocketStream extends \Stream
-{
-	public function __construct() {
-		throw new Exception("Instantiation of 'SocketStream' is not allowed");
-	}
-	
-	public static function createClient(string $remote_socket, int &$errno = null, string &$errstr = null, 
-			float $timeout = ini_get("default_socket_timeout"), int $flags = \Stream::STREAM_CLIENT_CONNECT, ?\StreamContext $context = null) : ?\SocketStream {}
-	
-	public static function createServer(string $local_socket, int &$errno = null, string &$errstr = null, 
-			int $flags = \Stream::STREAM_SERVER_BIND | \Stream::STREAM_SERVER_LISTEN, ?\StreamContext $context = null) : ?\SocketStream {}
-			
-	public static function createPair(int $domain, int $type, int $protocol) : ?array {}
-	
-	public function accept(float $timeout = ini_get("default_socket_timeout"), string &$peername = null) : ?\SocketStream {}
-	
-	public function enableCrypto(bool $enable, int $crypto_type = null, ?\Stream $session_stream = null) {}
-	
-	public function getName(bool $want_peer) : string {}
-	
-	public function recvfrom(int $length, int $flags = 0, string &$address = null) : ?string {}
-	
-	public function sendto(string $data, int $flags = 0, string $address = null) : int {}
-	
-	public function shutdown(int $how) : bool {}
-}
-
 class FileStream extends \Stream
 {
 	public function __construct() {
@@ -933,55 +958,29 @@ class FileStream extends \Stream
 	public function getcsv($length, string $delimiter = ',', string $enclosure = '"', string $escape_char = '\\') : ?array  {}	
 }
 
-class File extends \Threaded
+class SocketStream extends \FileStream
 {
 	public function __construct() {
-		throw new Exception("Instantiation of 'File' is not allowed");
+		throw new Exception("Instantiation of 'SocketStream' is not allowed");
 	}
 	
-	/**
-	 * @param string $filename
-	 * @param bool $use_include_path optional
-	 * @return array|NULL
-	 */
-	public static function getMetaTags(string $filename, bool $use_include_path) : ?array {}
+	public static function createClient(string $remote_socket, int &$errno = null, string &$errstr = null,
+			float $timeout = ini_get("default_socket_timeout"), int $flags = \Stream::STREAM_CLIENT_CONNECT, ?\StreamContext $context = null) : ?\SocketStream {}
+			
+	public static function createServer(string $local_socket, int &$errno = null, string &$errstr = null,
+			int $flags = \Stream::STREAM_SERVER_BIND | \Stream::STREAM_SERVER_LISTEN, ?\StreamContext $context = null) : ?\SocketStream {}
+					
+	public static function createPair(int $domain, int $type, int $protocol) : ?array {}
 	
-	/**
-	 * @param string $filename
-	 * @param bool $use_include_path optional
-	 * @param StreamContext $context optional
-	 * @param int $offset optional
-	 * @param int $maxlen optional
-	 * @return string|NULL
-	 */
-	public static function getContents(string $filename, bool $use_include_path = false, ?\StreamContext $context = null, int $offset = 0, int $maxlen = -1) : ?string {}
+	public function accept(float $timeout = ini_get("default_socket_timeout"), string &$peername = null) : ?\SocketStream {}
 	
-	public static function putContents(string $filename, $data, int $flags = 0, ?\StreamContext $context = null) : int {}
+	public function enableCrypto(bool $enable, int $crypto_type = null, ?\Stream $session_stream = null) {}
 	
-	public static function file(string $filename, int $flags = 0, ?\StreamContext $context = null) : ?array {}
+	public function getName(bool $want_peer) : string {}
 	
-	public static function tempName(string $dir, string $prefix) : ?string {}
+	public function recvfrom(int $length, int $flags = 0, string &$address = null) : ?string {}
 	
-	public static function tempFile() : ?\FileStream {}
+	public function sendto(string $data, int $flags = 0, string $address = null) : int {}
 	
-	public static function open(string $filename, string $mode, bool $use_include_path = false, ?\StreamContext $context = null) : ?\FileStream {}
-	
-	public static function popen(string $filename, string $mode) : ?\FileStream {}
-	
-	public static function mkdir(string $pathname, int $mode = 0777, bool $recursive = false, ?\StreamContext $context = null) : bool {}
-	
-	public static function rmdir(string $pathname, ?\StreamContext $context = null) : bool {}
-	
-	public static function readfile(string $pathname, bool $use_include_path = false, ?\StreamContext $context = null) : int {}
-	
-	public static function rename(string $old_name, string $new_name, ?\StreamContext $context = null) : bool {}
-	
-	public static function unlink(string $filename, ?\StreamContext $context = null) : bool {}
-	
-	public static function copy(string $source_file, string $destination_file, ?\StreamContext $context = null) : bool {}
-	
-	public static function sockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream {}
-	
-	public static function psockopen(string $hostname, int $port = -1, int &$errno, string &$errstr, float $timeout = ini_get("default_socket_timeout")) : ?\FileStream {}
-	
+	public function shutdown(int $how) : bool {}
 }

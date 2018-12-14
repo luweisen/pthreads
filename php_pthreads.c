@@ -353,9 +353,6 @@ PHP_MINIT_FUNCTION(pthreads)
 	pthreads_stream_wrapper_entry = zend_register_internal_class_ex(&ce, pthreads_threaded_entry);
 	pthreads_stream_wrapper_entry->create_object = pthreads_stream_wrapper_ctor;
 
-	INIT_CLASS_ENTRY(ce, "SocketStream", pthreads_streams_socket_stream_methods);
-	pthreads_socket_stream_entry = zend_register_internal_class_ex(&ce, pthreads_stream_entry);
-
 	INIT_CLASS_ENTRY(ce, "VolatileMap", NULL);
 	pthreads_volatile_map_entry = zend_register_internal_class_ex(&ce, pthreads_volatile_entry);
 
@@ -381,6 +378,9 @@ PHP_MINIT_FUNCTION(pthreads)
 
 	INIT_CLASS_ENTRY(ce, "FileStream", pthreads_streams_file_stream_methods);
 	pthreads_file_stream_entry = zend_register_internal_class_ex(&ce, pthreads_stream_entry);
+
+	INIT_CLASS_ENTRY(ce, "SocketStream", pthreads_streams_socket_stream_methods);
+	pthreads_socket_stream_entry = zend_register_internal_class_ex(&ce, pthreads_file_stream_entry);
 
 	INIT_CLASS_ENTRY(ce, "File", pthreads_file_methods);
 	pthreads_file_entry = zend_register_internal_class_ex(&ce, pthreads_threaded_entry);

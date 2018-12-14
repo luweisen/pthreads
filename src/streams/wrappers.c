@@ -132,7 +132,7 @@ void pthreads_stream_tidy_wrapper_error_log(pthreads_stream_wrapper_t *threaded_
 }
 
 static void wrapper_error_dtor(void *error) {
-	pefree(*(char**)error, 1);
+	free(*(char**)error);
 }
 
 void pthreads_stream_wrapper_log_error(const pthreads_stream_wrapper_t *threaded_wrapper, int options, const char *fmt, ...) {
@@ -158,9 +158,11 @@ void pthreads_stream_wrapper_log_error(const pthreads_stream_wrapper_t *threaded
 				list = zend_hash_str_update_mem(&wrapper_errors->ht, (const char*)&threaded_wrapper,
 						sizeof(threaded_wrapper), &new_list, sizeof(new_list));
 			}
+			char *buf = strdup(buffer);
+			efree(buffer);
 
 			/* append to linked list */
-			zend_llist_add_element(list, pestrdup(buffer, 1));
+			zend_llist_add_element(list, &buf);
 			MONITOR_UNLOCK(wrapper_errors);
 		}
 	}

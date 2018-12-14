@@ -20,19 +20,19 @@
 /* {{{ free_url */
 void pthreads_url_free(pthreads_url *theurl) {
 	if (theurl->scheme)
-		zend_string_release_ex(theurl->scheme, 0);
+		zend_string_release(theurl->scheme);
 	if (theurl->user)
-		zend_string_release_ex(theurl->user, 0);
+		zend_string_release(theurl->user);
 	if (theurl->pass)
-		zend_string_release_ex(theurl->pass, 0);
+		zend_string_release(theurl->pass);
 	if (theurl->host)
-		zend_string_release_ex(theurl->host, 0);
+		zend_string_release(theurl->host);
 	if (theurl->path)
-		zend_string_release_ex(theurl->path, 0);
+		zend_string_release(theurl->path);
 	if (theurl->query)
-		zend_string_release_ex(theurl->query, 0);
+		zend_string_release(theurl->query);
 	if (theurl->fragment)
-		zend_string_release_ex(theurl->fragment, 0);
+		zend_string_release(theurl->fragment);
 	efree(theurl);
 }
 /* }}} */
