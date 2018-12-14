@@ -249,7 +249,7 @@ static void pthreads_user_stream_create_object(struct pthreads_user_stream_wrapp
 		zval zcontext;
 		ZVAL_OBJ(&zcontext, PTHREADS_STD_P(threaded_context));
 		add_property_zval(object, "context", &zcontext);
-		GC_ADDREF(zcontext);
+		Z_ADDREF(zcontext);
 	} else {
 		add_property_null(object, "context");
 	}
@@ -347,7 +347,7 @@ static pthreads_stream_t *pthreads_user_wrapper_opener(pthreads_stream_wrapper_t
 
 	if (call_result == SUCCESS && Z_TYPE(zretval) != IS_UNDEF && zval_is_true(&zretval)) {
 		/* the stream is now open! */
-		threaded_stream = PTHREADS_STREAM_NEW(&pthreads_stream_userspace_ops, us, mode, NULL);
+		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_userspace_ops, us, mode, NULL, ce);
 
 		/* if the opened path is set, copy it out */
 		if (Z_ISREF(args[3]) && Z_TYPE_P(Z_REFVAL(args[3])) == IS_STRING && opened_path) {
