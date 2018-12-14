@@ -347,7 +347,7 @@ PHP_METHOD(FileStream, eof) {
 PHP_METHOD(FileStream, gets) {
 	zend_long len = 1024;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &len) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &len) != SUCCESS) {
 		RETURN_NULL();
 	}
 
