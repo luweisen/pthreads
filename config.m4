@@ -27,9 +27,7 @@ if test "$PHP_PTHREADS" != "no"; then
 		EXTRA_CFLAGS="$EXTRA_CFLAGS -DDMALLOC"
 	fi
 
-	PHP_NEW_EXTENSION(pthreads, php_pthreads.c \
-        src/monitor.c \
-        src/stack.c \
+	PHP_NEW_EXTENSION(pthreads, php_pthreads.c src/monitor.c src/stack.c \
         src/globals.c \
         src/prepare.c \
         src/store.c \
