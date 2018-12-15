@@ -55,6 +55,10 @@
 #	include <src/info.c>
 #endif
 
+#ifndef FLOCK_COMPAT_H
+#	include <ext/standard/flock_compat.h>
+#endif
+
 zend_module_entry pthreads_module_entry = {
   STANDARD_MODULE_HEADER,
   PHP_PTHREADS_EXTNAME,
@@ -385,6 +389,13 @@ PHP_MINIT_FUNCTION(pthreads)
 	INIT_CLASS_ENTRY(ce, "File", pthreads_file_methods);
 	pthreads_file_entry = zend_register_internal_class_ex(&ce, pthreads_threaded_entry);
 
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("SEEK_SET"), SEEK_SET);
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("SEEK_CUR"), SEEK_CUR);
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("SEEK_END"), SEEK_END);
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("LOCK_SH"), PHP_LOCK_SH);
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("LOCK_EX"), PHP_LOCK_EX);
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("LOCK_UN"), PHP_LOCK_UN);
+	zend_declare_class_constant_long(pthreads_file_entry, ZEND_STRL("LOCK_NB"), PHP_LOCK_NB);
 
 	pthreads_init_sockets();
 

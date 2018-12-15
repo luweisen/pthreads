@@ -50,6 +50,10 @@
 #	include <src/network.h>
 #endif
 
+#ifndef FLOCK_COMPAT_H
+#	include <ext/standard/flock_compat.h>
+#endif
+
 pthreads_streams_t* pthreads_streams_alloc(void) {
 	return (pthreads_streams_t*) ecalloc(1, sizeof(pthreads_streams_t));
 }
@@ -131,6 +135,117 @@ void pthreads_init_streams() {
 	pthreads_init_stream_filters();
 	pthreads_init_stream_wrappers();
 	pthreads_init_stream_transports();
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_CONNECT")			, PTHREADS_STREAM_NOTIFY_CONNECT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_AUTH_REQUIRED")	, PTHREADS_STREAM_NOTIFY_AUTH_REQUIRED);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_AUTH_RESULT")		, PTHREADS_STREAM_NOTIFY_AUTH_RESULT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_MIME_TYPE_IS")	, PTHREADS_STREAM_NOTIFY_MIME_TYPE_IS);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_FILE_SIZE_IS")	, PTHREADS_STREAM_NOTIFY_FILE_SIZE_IS);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_REDIRECTED")		, PTHREADS_STREAM_NOTIFY_REDIRECTED);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_PROGRESS")		, PTHREADS_STREAM_NOTIFY_PROGRESS);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_FAILURE")			, PTHREADS_STREAM_NOTIFY_FAILURE);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_COMPLETED")		, PTHREADS_STREAM_NOTIFY_COMPLETED);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_RESOLVE")			, PTHREADS_STREAM_NOTIFY_RESOLVE);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_SEVERITY_INFO")	, PTHREADS_STREAM_NOTIFY_SEVERITY_INFO);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_SEVERITY_WARN")	, PTHREADS_STREAM_NOTIFY_SEVERITY_WARN);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_NOTIFY_SEVERITY_ERR")	, PTHREADS_STREAM_NOTIFY_SEVERITY_ERR);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_FILTER_READ")			, PTHREADS_STREAM_FILTER_READ);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_FILTER_WRITE")			, PTHREADS_STREAM_FILTER_WRITE);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_FILTER_ALL")				, PTHREADS_STREAM_FILTER_ALL);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CLIENT_PERSISTENT")		, PTHREADS_STREAM_CLIENT_PERSISTENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CLIENT_ASYNC_CONNECT")	, PTHREADS_STREAM_CLIENT_ASYNC_CONNECT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CLIENT_CONNECT")			, PTHREADS_STREAM_CLIENT_CONNECT);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_ANY_CLIENT")		, PTHREADS_STREAM_CRYPTO_METHOD_ANY_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_SSLv2_CLIENT")		, PTHREADS_STREAM_CRYPTO_METHOD_SSLv2_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_SSLv3_CLIENT")		, PTHREADS_STREAM_CRYPTO_METHOD_SSLv3_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_SSLv23_CLIENT")	, PTHREADS_STREAM_CRYPTO_METHOD_SSLv23_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLS_CLIENT")		, PTHREADS_STREAM_CRYPTO_METHOD_TLS_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT")	, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT")	, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT")	, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_ANY_SERVER")		, PTHREADS_STREAM_CRYPTO_METHOD_ANY_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_SSLv2_SERVER")		, PTHREADS_STREAM_CRYPTO_METHOD_SSLv2_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_SSLv3_SERVER")		, PTHREADS_STREAM_CRYPTO_METHOD_SSLv3_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_SSLv23_SERVER")	, PTHREADS_STREAM_CRYPTO_METHOD_SSLv23_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLS_SERVER")		, PTHREADS_STREAM_CRYPTO_METHOD_TLS_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLSv1_0_SERVER")	, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_0_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLSv1_1_SERVER")	, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_1_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_METHOD_TLSv1_2_SERVER")	, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_2_SERVER);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_PROTO_SSLv3")				, PTHREADS_STREAM_CRYPTO_METHOD_SSLv3_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_PROTO_TLSv1_0")			, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_0_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_PROTO_TLSv1_1")			, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_1_SERVER);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CRYPTO_PROTO_TLSv1_2")			, PTHREADS_STREAM_CRYPTO_METHOD_TLSv1_2_SERVER);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SHUT_RD")	, PTHREADS_STREAM_SHUT_RD);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SHUT_WR")	, PTHREADS_STREAM_SHUT_WR);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SHUT_RDWR")	, PTHREADS_STREAM_SHUT_RDWR);
+
+#ifdef PF_INET
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PF_INET"), PF_INET);
+#elif defined(AF_INET)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PF_INET"), AF_INET);
+#endif
+
+#if HAVE_IPV6
+# ifdef PF_INET6
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PF_INET6"), PF_INET6);
+# elif defined(AF_INET6)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PF_INET6"), AF_INET6);
+# endif
+#endif
+
+#ifdef PF_UNIX
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PF_UNIX"), PF_UNIX);
+#elif defined(AF_UNIX)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PF_UNIX"), AF_UNIX);
+#endif
+
+#ifdef IPPROTO_IP
+	/* most people will use this one when calling socket() or socketpair() */
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_IPPROTO_IP"), IPPROTO_IP);
+#endif
+
+#if defined(IPPROTO_TCP) || defined(PHP_WIN32)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_IPPROTO_TCP"), IPPROTO_TCP);
+#endif
+
+#if defined(IPPROTO_UDP) || defined(PHP_WIN32)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_IPPROTO_UDP"), IPPROTO_UDP);
+#endif
+
+#if defined(IPPROTO_ICMP) || defined(PHP_WIN32)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_IPPROTO_ICMP"), IPPROTO_ICMP);
+#endif
+
+#if defined(IPPROTO_RAW) || defined(PHP_WIN32)
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_IPPROTO_RAW"), IPPROTO_RAW);
+#endif
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SOCK_STREAM"), SOCK_STREAM);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SOCK_DGRAM"), SOCK_DGRAM);
+
+#ifdef SOCK_RAW
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SOCK_RAW"), SOCK_RAW);
+#endif
+
+#ifdef SOCK_SEQPACKET
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SOCK_SEQPACKET"), SOCK_SEQPACKET);
+#endif
+
+#ifdef SOCK_RDM
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SOCK_RDM"), SOCK_RDM);
+#endif
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_PEEK"), PTHREADS_STREAM_PEEK);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_OOB"), PTHREADS_STREAM_OOB);
+
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SERVER_BIND"), PTHREADS_STREAM_XPORT_BIND);
+	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_SERVER_LISTEN"), PTHREADS_STREAM_XPORT_LISTEN);
 }
 
 void pthreads_shutdown_streams() {
@@ -538,7 +653,7 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 #if PTHREADS_STREAM_DEBUG
 		{
 			char out[200] = "";
-			fprintf(stderr, "stream_free: %s:%p[%s] in_free=%d opts=%s\n",
+			fprintf(stderr, "stream_close: %s:%p[%s] in_free=%d opts=%s\n",
 				stream->ops->label, stream, stream->orig_path, stream->in_free, _pthreads_stream_pretty_free_options(close_options, out));
 		}
 
@@ -587,8 +702,8 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 		}
 
 #if PTHREADS_STREAM_DEBUG
-fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d release_cast=%d\n",
-		stream->ops->label, stream, stream->orig_path, preserve_handle, release_cast);
+fprintf(stderr, "stream_close: %s:%p[%s] preserve_handle=%d\n",
+		stream->ops->label, stream, stream->orig_path, preserve_handle);
 #endif
 
 		if (stream->flags & PTHREADS_STREAM_FLAG_WAS_WRITTEN) {
@@ -650,6 +765,11 @@ void _pthreads_stream_free(pthreads_stream_t *threaded_stream) {
 	pthreads_stream_wrapper *wrapper = NULL;
 
 	if(stream && MONITOR_LOCK(threaded_stream)) {
+
+#if PTHREADS_STREAM_DEBUG
+fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d\n",
+		stream->ops->label, stream, stream->orig_path, stream->preserve_handle);
+#endif
 		stream->ops->free(threaded_stream, stream->preserve_handle ? 0 : 1);
 		stream->abstract = NULL;
 
