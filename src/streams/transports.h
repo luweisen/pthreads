@@ -45,8 +45,7 @@
 
 typedef pthreads_stream_t *(pthreads_stream_transport_factory_func)(const char *proto, size_t protolen,
 		const char *resourcename, size_t resourcenamelen,
-		const char *persistent_id, int options, int flags,
-		struct timeval *timeout,
+		int options, int flags, struct timeval *timeout,
 		pthreads_stream_context_t *threaded_context);
 typedef pthreads_stream_transport_factory_func *pthreads_stream_transport_factory;
 
@@ -55,14 +54,13 @@ int pthreads_stream_xport_unregister(const char *protocol);
 
 /* Open a client or server socket connection */
 pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namelen, int options,
-		int flags, const char *persistent_id,
-		struct timeval *timeout,
+		int flags, struct timeval *timeout,
 		pthreads_stream_context_t *threaded_context,
 		zend_string **error_string,
 		int *error_code);
 
-#define pthreads_stream_xport_create(name, namelen, options, flags, persistent_id, timeout, context, estr, ecode) \
-	_pthreads_stream_xport_create(name, namelen, options, flags, persistent_id, timeout, context, estr, ecode)
+#define pthreads_stream_xport_create(name, namelen, options, flags, timeout, context, estr, ecode) \
+	_pthreads_stream_xport_create(name, namelen, options, flags, timeout, context, estr, ecode)
 
 /* Bind the stream to a local address */
 int pthreads_stream_xport_bind(pthreads_stream_t *threaded_stream,

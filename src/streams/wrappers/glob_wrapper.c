@@ -307,7 +307,7 @@ static pthreads_stream_t *pthreads_glob_stream_opener(pthreads_stream_wrapper_t 
 		pthreads_glob_stream_path_split(pglob, path, 1, &tmp);
 	}
 
-	return PTHREADS_STREAM_CLASS_NEW(&pthreads_glob_stream_ops, pglob, mode, NULL, ce);
+	return PTHREADS_STREAM_CLASS_NEW(&pthreads_glob_stream_ops, pglob, mode, ce);
 }
 /* }}} */
 

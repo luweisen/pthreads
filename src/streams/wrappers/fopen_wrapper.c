@@ -139,16 +139,16 @@ pthreads_stream_t * pthreads_stream_url_wrap_php(pthreads_stream_wrapper_t *thre
 			}
 		}
 		mode_rw = pthreads_stream_mode_from_str(mode);
-		return pthreads_stream_temp_create(mode_rw, max_memory);
+		return pthreads_stream_temp_create(mode_rw, max_memory, ce);
 	}
 
 	if (!strcasecmp(path, "memory")) {
 		mode_rw = pthreads_stream_mode_from_str(mode);
-		return pthreads_stream_memory_create(mode_rw);
+		return pthreads_stream_memory_create(mode_rw, ce);
 	}
 
 	if (!strcasecmp(path, "output")) {
-		return PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_output_ops, NULL, "wb", NULL, ce);
+		return PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_output_ops, NULL, "wb", ce);
 	}
 
 	if (!strcasecmp(path, "stdin")) {
@@ -307,7 +307,7 @@ pthreads_stream_t * pthreads_stream_url_wrap_php(pthreads_stream_wrapper_t *thre
 		zend_stat_t st;
 		memset(&st, 0, sizeof(st));
 		if (zend_fstat(fd, &st) == 0 && (st.st_mode & S_IFMT) == S_IFSOCK) {
-			threaded_stream = pthreads_stream_sock_open_from_socket(fd, NULL);
+			threaded_stream = _pthreads_stream_sock_open_from_socket(fd, pthreads_socket_stream_entry);
 			if (threaded_stream) {
 				stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 				stream->ops = &pthreads_stream_socket_ops;
@@ -320,7 +320,7 @@ pthreads_stream_t * pthreads_stream_url_wrap_php(pthreads_stream_wrapper_t *thre
 	if (file) {
 		threaded_stream = pthreads_stream_fopen_from_file(file, mode);
 	} else {
-		threaded_stream = pthreads_stream_fopen_from_fd(fd, mode, NULL);
+		threaded_stream = pthreads_stream_fopen_from_fd(fd, mode);
 		if (threaded_stream == NULL) {
 			close(fd);
 		}

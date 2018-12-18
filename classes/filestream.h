@@ -46,7 +46,6 @@ PHP_METHOD(File, rename);
 PHP_METHOD(File, unlink);
 PHP_METHOD(File, copy);
 PHP_METHOD(File, sockopen);
-PHP_METHOD(File, psockopen);
 
 /**
  * FileStream
@@ -223,14 +222,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(File_sockopen, 0, 1, FileStream, 1)
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_DOUBLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(File_psockopen, 0, 1, FileStream, 1)
-	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
-	ZEND_ARG_INFO(1, errno)
-	ZEND_ARG_INFO(1, errstr)
-	ZEND_ARG_TYPE_INFO(0, timeout, IS_DOUBLE, 0)
-ZEND_END_ARG_INFO()
-
 extern zend_function_entry pthreads_streams_file_stream_methods[];
 extern zend_function_entry pthreads_file_methods[];
 #else
@@ -278,7 +269,6 @@ zend_function_entry pthreads_file_methods[] = {
 	PHP_ME(File, unlink         , File_unlink           , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(File, copy           , File_copy             , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_ME(File, sockopen       , File_sockopen         , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
-	PHP_ME(File, psockopen      , File_psockopen        , ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	PHP_FE_END
 };
 
@@ -295,7 +285,7 @@ PHP_METHOD(FileStream, lock) {
 	int act;
 	zend_long operation = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z/!", &operation, &wouldblock) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z/", &operation, &wouldblock) != SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -652,7 +642,7 @@ PHP_METHOD(File, getContents) {
 		RETURN_NULL();
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -680,7 +670,7 @@ PHP_METHOD(File, putContents) {
 		RETURN_LONG(0);
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -701,7 +691,7 @@ PHP_METHOD(File, file) {
 		RETURN_NULL();
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -746,7 +736,7 @@ PHP_METHOD(File, open) {
 		RETURN_NULL();
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -780,7 +770,7 @@ PHP_METHOD(File, mkdir) {
 		RETURN_FALSE;
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -800,7 +790,7 @@ PHP_METHOD(File, rmdir) {
 		RETURN_FALSE;
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -821,7 +811,7 @@ PHP_METHOD(File, readfile) {
 		RETURN_FALSE;
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -841,7 +831,7 @@ PHP_METHOD(File, rename) {
 		RETURN_FALSE;
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -861,7 +851,7 @@ PHP_METHOD(File, unlink) {
 		RETURN_FALSE;
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -881,7 +871,7 @@ PHP_METHOD(File, copy) {
 		RETURN_FALSE;
 	}
 
-	if (zcontext != NULL && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
 			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
@@ -900,26 +890,11 @@ PHP_METHOD(File, sockopen) {
 	zend_long port = -1;
 	double timeout = (double)FG(default_socket_timeout);
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|lz/!z/!d", &host, &port, &zerrno, &zerrstr, &timeout) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|lz/z/d", &host, &port, &zerrno, &zerrstr, &timeout) != SUCCESS) {
 		RETURN_NULL();
 	}
 
-	pthreads_streams_api_file_sockopen(host, port, zerrno, zerrstr, timeout, 0, return_value);
-} /* }}} */
-
-/* {{{ proto FileStream File::psockopen(string $hostname [, int $port = -1 [, int &$errno [, string &$errstr [, float $timeout = ini_get("default_socket_timeout") ]]]])
-   */
-PHP_METHOD(File, psockopen) {
-	zend_string *host;
-	zval *zerrno = NULL, *zerrstr = NULL;
-	zend_long port = -1;
-	double timeout = (double)FG(default_socket_timeout);
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|lz/!z/!d", &host, &port, &zerrno, &zerrstr, &timeout) != SUCCESS) {
-		RETURN_NULL();
-	}
-
-	pthreads_streams_api_file_sockopen(host, port, zerrno, zerrstr, timeout, 1, return_value);
+	pthreads_streams_api_file_sockopen(host, port, zerrno, zerrstr, timeout, return_value);
 } /* }}} */
 
 #	endif

@@ -113,6 +113,12 @@ void pthreads_del_ref(pthreads_object_t* threaded) {
 	zval obj;
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 	Z_DELREF_P(&obj);
+}
+
+int pthreads_refcount(pthreads_object_t* threaded) {
+	zval obj;
+	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
+	return Z_REFCOUNT_P(&obj);
 } /* }}} */
 
 zend_object_iterator* pthreads_object_iterator_create(zend_class_entry *ce, zval *object, int by_ref) {
@@ -344,7 +350,8 @@ int pthreads_connect(pthreads_object_t* source, pthreads_object_t* destination) 
 		if (PTHREADS_IS_NOT_CONNECTION(destination)) {
 			if(PTHREADS_IS_STREAMS(destination)) {
 #if PTHREADS_STREAM_DEBUG
-	printf("connecting stream object std(%p) threaded(%p) type: %s \n", PTHREADS_STD_P(destination), destination, pthreads_get_object_name(source));
+	printf("connecting stream object [source] std(%p) threaded(%p) type(%s) thread(%i) \n", PTHREADS_STD_P(source), source, pthreads_get_object_name(source), pthreads_self());
+	printf("connecting stream object [destination] std(%p) threaded(%p) type(%s) thread(%i) \n", PTHREADS_STD_P(destination), destination, pthreads_get_object_name(source), pthreads_self());
 #endif
 				if(PTHREADS_IS_STREAM_CONTEXT(destination)) {
 					pthreads_stream_context_free(PTHREADS_FETCH_STREAMS_CONTEXT(destination));
@@ -461,7 +468,7 @@ void pthreads_base_free(zend_object *object) {
 	if (PTHREADS_IS_NOT_CONNECTION(base)) {
 		if(PTHREADS_IS_STREAMS(base)) {
 #if PTHREADS_STREAM_DEBUG
-	printf("freeing stream object std(%p) threaded(%p) type: %s \n", object, base, pthreads_get_object_name(base));
+	printf("freeing stream object std(%p) threaded(%p) type(%s) thread(%i) \n", object, base, pthreads_get_object_name(base), pthreads_self());
 #endif
 			if(PTHREADS_IS_STREAM(base)) {
 				pthreads_stream * stream = PTHREADS_FETCH_STREAMS_STREAM(base);

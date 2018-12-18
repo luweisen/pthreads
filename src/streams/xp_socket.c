@@ -102,7 +102,7 @@ retry:
 	}
 
 	if (didwrite > 0) {
-		pthreads_stream_notify_progress_increment(PTHREADS_STREAM_CONTEXT(stream), didwrite, 0);
+		pthreads_stream_notify_progress_increment(pthreads_stream_get_context(threaded_stream), didwrite, 0);
 	}
 
 	if (didwrite < 0) {
@@ -164,7 +164,7 @@ static size_t pthreads_sockop_read(pthreads_stream_t *threaded_stream, char *buf
 	stream->eof = (nr_bytes == 0 || (nr_bytes == -1 && err != EWOULDBLOCK && err != EAGAIN));
 
 	if (nr_bytes > 0) {
-		pthreads_stream_notify_progress_increment(PTHREADS_STREAM_CONTEXT(stream), nr_bytes, 0);
+		pthreads_stream_notify_progress_increment(pthreads_stream_get_context(threaded_stream), nr_bytes, 0);
 	}
 
 	if (nr_bytes < 0) {
@@ -336,6 +336,7 @@ static int pthreads_sockop_set_option(pthreads_stream_t *threaded_stream, int op
 
 					ret = recv(sock->socket, &buf, sizeof(buf), MSG_PEEK);
 					err = php_socket_errno();
+
 					if (0 == ret || /* the counterpart did properly shutdown*/
 						(0 > ret && err != EWOULDBLOCK && err != EAGAIN && err != EMSGSIZE)) { /* there was an unrecoverable error */
 						alive = 0;
@@ -610,13 +611,11 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 	return host;
 }
 
-static inline char *parse_ip_address(pthreads_stream_xport_param *xparam, int *portno)
-{
+static inline char *parse_ip_address(pthreads_stream_xport_param *xparam, int *portno) {
 	return parse_ip_address_ex(xparam->inputs.name, xparam->inputs.namelen, portno, xparam->want_errortext, &xparam->outputs.error_text);
 }
 
-static inline int pthreads_tcp_sockop_bind(pthreads_stream_t *threaded_stream, pthreads_netstream_data_t *sock, pthreads_stream_xport_param *xparam)
-{
+static inline int pthreads_tcp_sockop_bind(pthreads_stream_t *threaded_stream, pthreads_netstream_data_t *sock, pthreads_stream_xport_param *xparam) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	char *host = NULL;
 	int portno, err;
@@ -652,31 +651,31 @@ static inline int pthreads_tcp_sockop_bind(pthreads_stream_t *threaded_stream, p
 	}
 
 #ifdef IPV6_V6ONLY
-	if (PTHREADS_STREAM_CONTEXT(stream)
-		&& (tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "ipv6_v6only")) != NULL
+	if (pthreads_stream_get_context(threaded_stream)
+		&& (tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "ipv6_v6only")) != NULL
 		&& Z_TYPE_P(tmpzval) != IS_NULL
 	) {
-		sockopts |= PTHREADS_STREAM_SOCKOP_IPV6_V6ONLY;
-		sockopts |= PTHREADS_STREAM_SOCKOP_IPV6_V6ONLY_ENABLED * zend_is_true(tmpzval);
+		sockopts |= STREAM_SOCKOP_IPV6_V6ONLY;
+		sockopts |= STREAM_SOCKOP_IPV6_V6ONLY_ENABLED * zend_is_true(tmpzval);
 	}
 #endif
 
 #ifdef SO_REUSEPORT
-	if (PTHREADS_STREAM_CONTEXT(stream)
-		&& (tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "so_reuseport")) != NULL
+	if (pthreads_stream_get_context(threaded_stream)
+		&& (tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "so_reuseport")) != NULL
 		&& zend_is_true(tmpzval)
 	) {
-		sockopts |= PTHREADS_STREAM_SOCKOP_SO_REUSEPORT;
+		sockopts |= STREAM_SOCKOP_SO_REUSEPORT;
 	}
 #endif
 
 #ifdef SO_BROADCAST
 	if (stream->ops == &pthreads_stream_udp_socket_ops /* SO_BROADCAST is only applicable for UDP */
-		&& PTHREADS_STREAM_CONTEXT(stream)
-		&& (tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "so_broadcast")) != NULL
+		&& pthreads_stream_get_context(threaded_stream)
+		&& (tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "so_broadcast")) != NULL
 		&& zend_is_true(tmpzval)
 	) {
-		sockopts |= PTHREADS_STREAM_SOCKOP_SO_BROADCAST;
+		sockopts |= STREAM_SOCKOP_SO_BROADCAST;
 	}
 #endif
 
@@ -702,7 +701,7 @@ static inline int pthreads_tcp_sockop_connect(pthreads_stream_t *threaded_stream
 	int err = 0;
 	int ret;
 	zval *tmpzval = NULL;
-	long sockopts = PTHREADS_STREAM_SOCKOP_NONE;
+	long sockopts = STREAM_SOCKOP_NONE;
 
 #ifdef AF_UNIX
 	if (stream->ops == &pthreads_stream_unix_socket_ops || stream->ops == &pthreads_stream_unixdg_socket_ops) {
@@ -737,7 +736,7 @@ static inline int pthreads_tcp_sockop_connect(pthreads_stream_t *threaded_stream
 		return -1;
 	}
 
-	if (PTHREADS_STREAM_CONTEXT(stream) && (tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "bindto")) != NULL) {
+	if (pthreads_stream_get_context(threaded_stream) && (tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "bindto")) != NULL) {
 		if (Z_TYPE_P(tmpzval) != IS_STRING) {
 			if (xparam->want_errortext) {
 				xparam->outputs.error_text = strpprintf(0, "local_addr context option is not a string.");
@@ -750,11 +749,11 @@ static inline int pthreads_tcp_sockop_connect(pthreads_stream_t *threaded_stream
 
 #ifdef SO_BROADCAST
 	if (stream->ops == &pthreads_stream_udp_socket_ops /* SO_BROADCAST is only applicable for UDP */
-		&& PTHREADS_STREAM_CONTEXT(stream)
-		&& (tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "so_broadcast")) != NULL
+		&& pthreads_stream_get_context(threaded_stream)
+		&& (tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "so_broadcast")) != NULL
 		&& zend_is_true(tmpzval)
 	) {
-		sockopts |= PTHREADS_STREAM_SOCKOP_SO_BROADCAST;
+		sockopts |= STREAM_SOCKOP_SO_BROADCAST;
 	}
 #endif
 
@@ -763,11 +762,11 @@ static inline int pthreads_tcp_sockop_connect(pthreads_stream_t *threaded_stream
 		&& stream->ops != &pthreads_stream_unix_socket_ops
 		&& stream->ops != &pthreads_stream_unixdg_socket_ops
 #endif
-		&& PTHREADS_STREAM_CONTEXT(stream)
-		&& (tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "tcp_nodelay")) != NULL
+		&& pthreads_stream_get_context(threaded_stream)
+		&& (tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "tcp_nodelay")) != NULL
 		&& zend_is_true(tmpzval)
 	) {
-		sockopts |= PTHREADS_STREAM_SOCKOP_TCP_NODELAY;
+		sockopts |= STREAM_SOCKOP_TCP_NODELAY;
 	}
 
 	/* Note: the test here for pthreads_stream_udp_socket_ops is important, because we
@@ -816,8 +815,8 @@ static inline int pthreads_tcp_sockop_accept(pthreads_stream_t *threaded_stream,
 
 	xparam->outputs.client = NULL;
 
-	if ((NULL != PTHREADS_STREAM_CONTEXT(stream)) &&
-		(tmpzval = pthreads_stream_context_get_option(PTHREADS_STREAM_CONTEXT(stream), "socket", "tcp_nodelay")) != NULL &&
+	if ((NULL != pthreads_stream_get_context(threaded_stream)) &&
+		(tmpzval = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), "socket", "tcp_nodelay")) != NULL &&
 		zend_is_true(tmpzval)) {
 		nodelay = 1;
 	}
@@ -837,11 +836,9 @@ static inline int pthreads_tcp_sockop_accept(pthreads_stream_t *threaded_stream,
 		memcpy(clisockdata, sock, sizeof(*clisockdata));
 		clisockdata->socket = clisock;
 
-		xparam->outputs.client = PTHREADS_STREAM_NEW(stream->ops, clisockdata, "r+", NULL);
+		xparam->outputs.client = PTHREADS_STREAM_NEW(stream->ops, clisockdata, "r+");
 		if (xparam->outputs.client) {
-			client_stream = PTHREADS_FETCH_STREAMS_STREAM(xparam->outputs.client);
-
-			PTHREADS_STREAM_SET_CONTEXT(client_stream, PTHREADS_STREAM_GET_CONTEXT(stream));
+			pthreads_stream_set_context(xparam->outputs.client, pthreads_stream_get_context(threaded_stream));
 		}
 	}
 
@@ -880,8 +877,7 @@ static int pthreads_tcp_sockop_set_option(pthreads_stream_t *threaded_stream, in
 
 pthreads_stream_t *pthreads_stream_generic_socket_factory(const char *proto, size_t protolen,
 		const char *resourcename, size_t resourcenamelen,
-		const char *persistent_id, int options, int flags,
-		struct timeval *timeout,
+		int options, int flags, struct timeval *timeout,
 		pthreads_stream_context_t *threaded_context)
 {
 	pthreads_stream_t *threaded_stream = NULL;
@@ -916,7 +912,7 @@ pthreads_stream_t *pthreads_stream_generic_socket_factory(const char *proto, siz
 	/* we don't know the socket until we have determined if we are binding or connecting */
 	sock->socket = -1;
 
-	threaded_stream = PTHREADS_STREAM_CLASS_NEW(ops, sock, "r+", NULL, pthreads_socket_stream_entry);
+	threaded_stream = PTHREADS_STREAM_CLASS_NEW(ops, sock, "r+", pthreads_socket_stream_entry);
 
 	if (threaded_stream == NULL)	{
 		free(sock);

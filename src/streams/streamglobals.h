@@ -17,22 +17,11 @@
  */
 #ifndef HAVE_PTHREADS_STREAM_GLOBALS_H
 #define HAVE_PTHREADS_STREAM_GLOBALS_H
-/*
-#ifndef HAVE_PTHREADS_H
-#	include <src/pthreads.h>
-#endif
-
-#ifndef HAVE_PTHREADS_STREAMS_CONTEXT_H
-#	include <src/streams/context.h>
-#endif
-*/
-//typedef struct _pthreads_hashtable pthreads_hashtable;
 
 /* {{{ pthreads_stream_globals */
 struct _pthreads_stream_globals {
 	pthreads_monitor_t *monitor;
 	pthreads_stream_context_t *default_context;
-	pthreads_hashtable streams_list;
 	pthreads_hashtable xport_hash;
 	pthreads_hashtable url_stream_wrappers_hash;
 	pthreads_hashtable stream_filters_hash;

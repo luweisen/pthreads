@@ -138,7 +138,6 @@ struct _pthreads_stream_wrapper	{
 };
 
 struct _pthreads_stream  {
-	pthreads_object_t *storage;
 	const pthreads_stream_ops *ops;
 	void *abstract;			/* convenience pointer for abstraction */
 
@@ -238,31 +237,32 @@ struct _pthreads_stream  {
 #define PTHREADS_STREAM_FLAG_WAS_WRITTEN				0x80000000
 
 #define PTHREADS_STREAM_STORAGE_KEY_CONTEXT				1
-#define PTHREADS_STREAM_STORAGE_KEY_ENCLOSING_STREAM	2
+#define PTHREADS_STREAM_STORAGE_KEY_INNERSTREAM			2
+#define PTHREADS_STREAM_STORAGE_KEY_PARENT				3
 
-#define PTHREADS_GET_CTX_OPT(stream, wrapper, name, val) (PTHREADS_STREAM_GET_CONTEXT(stream) && NULL != (val = pthreads_stream_context_get_option(PTHREADS_STREAM_GET_CONTEXT(stream), wrapper, name)))
-
-#define PTHREADS_STREAM_CONTEXT(stream) \
-	(PTHREADS_STREAM_GET_CONTEXT(stream))
-
-#define PTHREADS_STREAM_GET_CONTEXT(stream) \
-	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_CONTEXT))
-
-#define PTHREADS_STREAM_SET_CONTEXT(stream, threaded_context) \
-	(pthreads_stream_write_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_CONTEXT, (threaded_context)))
-
-#define PTHREADS_STREAM_DELETE_CONTEXT(stream) \
-	(pthreads_stream_delete_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_CONTEXT))
+#define PTHREADS_GET_CTX_OPT(threaded_stream, wrapper, name, val) (pthreads_stream_get_context(threaded_stream) && NULL != (val = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), wrapper, name)))
 
 
-#define PTHREADS_STREAM_GET_ENCLOSING_STREAM(stream) \
-	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_ENCLOSING_STREAM))
+#define pthreads_stream_get_context(threaded_stream) \
+	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_CONTEXT))
 
-#define PTHREADS_STREAM_SET_ENCLOSING_STREAM(stream, threaded_stream) \
-	(pthreads_stream_write_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_ENCLOSING_STREAM, (threaded_stream)))
+#define pthreads_stream_set_context(threaded_stream, threaded_context) \
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_CONTEXT, (threaded_context)))
 
-#define PTHREADS_STREAM_DELETE_ENCLOSING_STREAM(stream) \
-	(pthreads_stream_delete_threaded_property((stream)->storage, PTHREADS_STREAM_STORAGE_KEY_ENCLOSING_STREAM))
+#define pthreads_stream_delete_context(threaded_stream) \
+	(pthreads_stream_delete_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_CONTEXT))
+
+#define pthreads_get_inner_stream(threaded_stream) \
+	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_INNERSTREAM))
+
+#define pthreads_set_inner_stream(threaded_stream, threaded_innerstream) \
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_INNERSTREAM, (threaded_innerstream)))
+
+#define pthreads_get_parent_stream(threaded_stream) \
+	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_PARENT))
+
+#define pthreads_set_parent_stream(threaded_stream, threaded_parent_stream) \
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_PARENT, (threaded_parent_stream)))
 
 void pthreads_init_streams();
 void pthreads_shutdown_streams();
@@ -271,9 +271,9 @@ zend_bool stream_lock(pthreads_stream_t *threaded_stream);
 #define stream_unlock(threaded_stream) \
 	(MONITOR_UNLOCK(threaded_stream))
 
-pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *abstract, const char *mode, const char *key, zend_class_entry *stream_ce);
-#define PTHREADS_STREAM_NEW(ops, abstract, mode, key) _pthreads_stream_new((ops), (abstract), (mode), (key), pthreads_stream_entry)
-#define PTHREADS_STREAM_CLASS_NEW(ops, abstract, mode, key, ce) _pthreads_stream_new((ops), (abstract), (mode), (key), (ce))
+pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *abstract, const char *mode, zend_class_entry *stream_ce);
+#define PTHREADS_STREAM_NEW(ops, abstract, mode) _pthreads_stream_new((ops), (abstract), (mode), pthreads_stream_entry)
+#define PTHREADS_STREAM_CLASS_NEW(ops, abstract, mode, ce) _pthreads_stream_new((ops), (abstract), (mode), (ce))
 pthreads_stream_filter_t *pthreads_stream_filter_new(const pthreads_stream_filter_ops *fops, void *abstract);
 pthreads_stream_filter_t *pthreads_stream_filter_init();
 pthreads_stream_bucket_t *pthreads_stream_bucket_new(char *buf, size_t buflen);
@@ -282,6 +282,7 @@ pthreads_stream_bucket_brigade_t *pthreads_stream_bucket_brigade_new();
 pthreads_stream_wrapper_t *pthreads_stream_wrapper_new();
 pthreads_stream_context_t *pthreads_stream_context_new();
 
+int pthreads_stream_has_threaded_property(pthreads_object_t *threaded, int property);
 pthreads_object_t *pthreads_stream_read_threaded_property(pthreads_object_t *threaded, int property);
 int pthreads_stream_write_threaded_property(pthreads_object_t *threaded, int property, pthreads_object_t *val);
 int pthreads_stream_delete_threaded_property(pthreads_object_t *threaded, int property);
@@ -311,20 +312,13 @@ pthreads_stream *_pthreads_stream_alloc(const pthreads_stream_ops *ops, void *ab
  * when the resources are auto-destructed */
 #define pthreads_stream_to_zval(threaded_stream, zval)	{ ZVAL_OBJ(zval, PTHREADS_STD_P((threaded_stream))); }
 
-int pthreads_stream_from_key(const char *key, pthreads_stream_t **threaded_stream);
-
-pthreads_stream_t *pthreads_stream_encloses(pthreads_stream_t *threaded_stream_enclosing, pthreads_stream_t *threaded_stream_enclosed);
-#define pthreads_stream_close_enclosed(threaded_stream_enclosed, close_options) _pthreads_stream_close_enclosed((threaded_stream_enclosed), (close_options))
-int _pthreads_stream_close_enclosed(pthreads_stream_t *threaded_stream_enclosed, int close_options);
-
-#define PTHREADS_STREAM_PERSISTENT_SUCCESS		0 /* id exists */
-#define PTHREADS_STREAM_PERSISTENT_FAILURE		1 /* id exists but is not a stream! */
-#define PTHREADS_STREAM_PERSISTENT_NOT_EXIST	2 /* id does not exist */
+pthreads_stream_t *pthreads_stream_set_parent(pthreads_stream_t *threaded_target, pthreads_stream_t *threaded_parent);
+#define pthreads_stream_close_ignore_parent(threaded_stream_enclosed, close_options) _pthreads_stream_close_ignore_parent((threaded_stream_enclosed), (close_options))
+int _pthreads_stream_close_ignore_parent(pthreads_stream_t *threaded_stream_enclosed, int close_options);
 
 #define PTHREADS_STREAM_FREE_CALL_DTOR			1 /* call ops->close */
 #define PTHREADS_STREAM_FREE_PRESERVE_HANDLE	4 /* tell ops->close to not close it's underlying handle */
-#define PTHREADS_STREAM_FREE_IGNORE_ENCLOSING	8 /* don't close the enclosing stream instead */
-#define PTHREADS_STREAM_FREE_PERSISTENT			16
+#define PTHREADS_STREAM_FREE_IGNORE_PARENT		8 /* don't close the enclosing stream instead */
 #define PTHREADS_STREAM_FREE_CLOSE				(PTHREADS_STREAM_FREE_CALL_DTOR)
 #define PTHREADS_STREAM_FREE_CLOSE_CASTED		(PTHREADS_STREAM_FREE_CLOSE | PTHREADS_STREAM_FREE_PRESERVE_HANDLE)
 
@@ -333,7 +327,6 @@ void _pthreads_stream_free(pthreads_stream_t *threaded_stream);
 int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options, int skip_check);
 #define pthreads_stream_close(threaded_stream, close_options)	_pthreads_stream_close((threaded_stream), (close_options), 0) // PTHREADS_STREAM_FREE_CLOSE
 #define pthreads_stream_close_unsafe(threaded_stream, close_options)	_pthreads_stream_close((threaded_stream), (close_options), 1)
-#define pthreads_stream_pclose(threaded_stream)	_pthreads_stream_close((threaded_stream), PTHREADS_STREAM_FREE_PERSISTENT, 0)
 
 int _pthreads_stream_seek(pthreads_stream_t *threaded_stream, zend_off_t offset, int whence);
 #define pthreads_stream_rewind(threaded_stream)	_pthreads_stream_seek((threaded_stream), 0L, SEEK_SET)
@@ -608,7 +601,6 @@ pthreads_hashtable *_pthreads_stream_get_url_stream_wrappers_hash(void);
 #define PTHREADS_STREAM_META_ACCESS		6
 
 /* Flags for stream_socket_client */
-#define PTHREADS_STREAM_CLIENT_PERSISTENT		1
 #define PTHREADS_STREAM_CLIENT_ASYNC_CONNECT	2
 #define PTHREADS_STREAM_CLIENT_CONNECT			4
 

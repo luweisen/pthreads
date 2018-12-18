@@ -55,8 +55,8 @@
 #	include <src/socket.h>
 #endif
 
-#define pthreads_stream_fopen_from_fd_int(fd, mode, key)	_pthreads_stream_fopen_from_fd_int((fd), (mode), (key))
-#define pthreads_stream_fopen_from_file_int(file, mode, key)	_pthreads_stream_fopen_from_file_int((file), (mode), (key))
+#define pthreads_stream_fopen_from_fd_int(fd, mode)	_pthreads_stream_fopen_from_fd_int((fd), (mode))
+#define pthreads_stream_fopen_from_file_int(file, mode)	_pthreads_stream_fopen_from_file_int((file), (mode))
 
 #ifndef PHP_WIN32
 extern int php_get_uid_by_name(const char *name, uid_t *uid);
@@ -174,7 +174,7 @@ static int do_fstat(pthreads_stdio_stream_data *d, int force)
 	return 0;
 }
 
-static pthreads_stream_t *_pthreads_stream_fopen_from_fd_int(int fd, const char *mode, const char *key) {
+static pthreads_stream_t *_pthreads_stream_fopen_from_fd_int(int fd, const char *mode) {
 	pthreads_stdio_stream_data *self;
 
 	self = malloc(sizeof(*self));
@@ -189,10 +189,10 @@ static pthreads_stream_t *_pthreads_stream_fopen_from_fd_int(int fd, const char 
 	self->is_pipe_blocking = 0;
 #endif
 
-	return PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_stdio_ops, self, mode, key, pthreads_file_stream_entry);
+	return PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_stdio_ops, self, mode, pthreads_file_stream_entry);
 }
 
-static pthreads_stream_t *_pthreads_stream_fopen_from_file_int(FILE *file, const char *mode, const char *key) {
+static pthreads_stream_t *_pthreads_stream_fopen_from_file_int(FILE *file, const char *mode) {
 	pthreads_stdio_stream_data *self;
 
 	self = malloc(sizeof(*self));
@@ -207,7 +207,7 @@ static pthreads_stream_t *_pthreads_stream_fopen_from_file_int(FILE *file, const
 	self->is_pipe_blocking = 0;
 #endif
 
-	return PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_stdio_ops, self, mode, key, pthreads_file_stream_entry);
+	return PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_stdio_ops, self, mode, pthreads_file_stream_entry);
 }
 
 pthreads_stream_t *_pthreads_stream_fopen_temporary_file(const char *dir, const char *pfx, zend_string **opened_path_ptr) {
@@ -228,7 +228,7 @@ pthreads_stream_t *_pthreads_stream_fopen_temporary_file(const char *dir, const 
 			*opened_path_ptr = opened_path;
 		}
 
-		threaded_stream = pthreads_stream_fopen_from_fd_int(fd, "r+b", 0);
+		threaded_stream = pthreads_stream_fopen_from_fd_int(fd, "r+b");
 		if (threaded_stream) {
 			pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 			pthreads_stdio_stream_data *self = (pthreads_stdio_stream_data*)stream->abstract;
@@ -254,8 +254,8 @@ pthreads_stream_t *_pthreads_stream_fopen_tmpfile(int dummy) {
 	return pthreads_stream_fopen_temporary_file(NULL, "php", NULL);
 }
 
-pthreads_stream_t *_pthreads_stream_fopen_from_fd(int fd, const char *mode, const char *key) {
-	pthreads_stream_t *threaded_stream = pthreads_stream_fopen_from_fd_int(fd, mode, key);
+pthreads_stream_t *_pthreads_stream_fopen_from_fd(int fd, const char *mode) {
+	pthreads_stream_t *threaded_stream = pthreads_stream_fopen_from_fd_int(fd, mode);
 
 	if (threaded_stream) {
 		pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
@@ -294,7 +294,7 @@ pthreads_stream_t *_pthreads_stream_fopen_from_fd(int fd, const char *mode, cons
 }
 
 pthreads_stream_t *_pthreads_stream_fopen_from_file(FILE *file, const char *mode) {
-	pthreads_stream_t *threaded_stream = pthreads_stream_fopen_from_file_int(file, mode, 0);
+	pthreads_stream_t *threaded_stream = pthreads_stream_fopen_from_file_int(file, mode);
 
 	if (threaded_stream) {
 		pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
@@ -325,7 +325,7 @@ pthreads_stream_t *_pthreads_stream_fopen_from_file(FILE *file, const char *mode
 	return threaded_stream;
 }
 
-pthreads_stream_t *_pthreads_stream_fopen_from_pipe(FILE *file, const char *mode, const char *key, zend_class_entry *ce)
+pthreads_stream_t *_pthreads_stream_fopen_from_pipe(FILE *file, const char *mode, zend_class_entry *ce)
 {
 	pthreads_stdio_stream_data *self;
 	pthreads_stream_t *threaded_stream;
@@ -343,7 +343,7 @@ pthreads_stream_t *_pthreads_stream_fopen_from_pipe(FILE *file, const char *mode
 	self->is_pipe_blocking = 0;
 #endif
 
-	threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_stdio_ops, self, mode, key, ce);
+	threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_stdio_ops, self, mode, ce);
 
 	stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	stream->flags |= PTHREADS_STREAM_FLAG_NO_SEEK;
@@ -1154,7 +1154,7 @@ static pthreads_stream_t *pthreads_plain_files_dir_opener(pthreads_stream_wrappe
 	}
 #endif
 	if (dir) {
-		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_plain_files_dirstream_ops, dir, mode, 0, ce);
+		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_plain_files_dirstream_ops, dir, mode, ce);
 		if (threaded_stream == NULL)
 			closedir(dir);
 	}
@@ -1171,7 +1171,6 @@ pthreads_stream_t *_pthreads_stream_fopen(const char *filename, const char *mode
 	pthreads_stream *stream = NULL;
 	pthreads_stream_t *threaded_stream = NULL;
 	int persistent = options & PTHREADS_STREAM_OPEN_PERSISTENT;
-	char *persistent_id = NULL;
 
 	if (FAILURE == pthreads_stream_parse_fopen_modes(mode, &open_flags)) {
 		if (options & PTHREADS_REPORT_ERRORS) {
@@ -1188,20 +1187,6 @@ pthreads_stream_t *_pthreads_stream_fopen(const char *filename, const char *mode
 		}
 	}
 
-	spprintf(&persistent_id, 0, "streams_stdio_%d_%s", open_flags, realpath);
-	switch (pthreads_stream_from_key(persistent_id, &threaded_stream)) {
-		case PTHREADS_STREAM_PERSISTENT_SUCCESS:
-			if (opened_path) {
-				//TODO: avoid reallocation???
-				*opened_path = zend_string_init(realpath, strlen(realpath), 1);
-			}
-			/* fall through */
-
-		case PTHREADS_STREAM_PERSISTENT_FAILURE:
-			efree(persistent_id);
-			return threaded_stream;
-	}
-
 #ifdef PHP_WIN32
 	fd = php_win32_ioutil_open(realpath, open_flags, 0666);
 #else
@@ -1210,18 +1195,14 @@ pthreads_stream_t *_pthreads_stream_fopen(const char *filename, const char *mode
 	if (fd != -1)	{
 
 		if (options & PTHREADS_STREAM_OPEN_FOR_INCLUDE) {
-			threaded_stream = pthreads_stream_fopen_from_fd_int(fd, mode, persistent_id);
+			threaded_stream = pthreads_stream_fopen_from_fd_int(fd, mode);
 		} else {
-			threaded_stream = pthreads_stream_fopen_from_fd(fd, mode, persistent_id);
+			threaded_stream = pthreads_stream_fopen_from_fd(fd, mode);
 		}
 
 		if (threaded_stream)	{
 			if (opened_path) {
 				*opened_path = zend_string_init(realpath, strlen(realpath), 1);
-			}
-
-			if (persistent_id) {
-				efree(persistent_id);
 			}
 			stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 
@@ -1254,9 +1235,6 @@ pthreads_stream_t *_pthreads_stream_fopen(const char *filename, const char *mode
 			return threaded_stream;
 		}
 		close(fd);
-	}
-	if (persistent_id) {
-		efree(persistent_id);
 	}
 	return NULL;
 }

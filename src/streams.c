@@ -91,37 +91,15 @@ void pthreads_streams_release_double_lock(pthreads_object_t *object_one, pthread
 	}
 }
 
-pthreads_stream_t *pthreads_stream_encloses(pthreads_stream_t *threaded_enclosing, pthreads_stream_t *threaded_enclosed) {
-	pthreads_stream *enclosing = PTHREADS_FETCH_STREAMS_STREAM(threaded_enclosing);
-	pthreads_stream *enclosed = PTHREADS_FETCH_STREAMS_STREAM(threaded_enclosed);
+pthreads_stream_t *pthreads_stream_set_parent(pthreads_stream_t *threaded_target, pthreads_stream_t *threaded_parent) {
 	pthreads_stream_t *orig = NULL;
 
-	if(stream_lock(threaded_enclosed)) {
-		orig = PTHREADS_STREAM_GET_ENCLOSING_STREAM(enclosed);
-		PTHREADS_STREAM_SET_ENCLOSING_STREAM(enclosed, threaded_enclosing);
-		stream_unlock(threaded_enclosed);
+	if(stream_lock(threaded_target)) {
+		orig = pthreads_get_parent_stream(threaded_target);
+		pthreads_set_parent_stream(threaded_target, threaded_parent);
+		stream_unlock(threaded_target);
 	}
 	return orig;
-}
-
-int pthreads_stream_from_key(const char *key, pthreads_stream_t **threaded_stream) {
-	pthreads_stream_t *ts;
-	pthreads_hashtable *streams_list = &PTHREADS_STREAMG(streams_list);
-
-	if (!threaded_stream) {
-		return PTHREADS_STREAM_PERSISTENT_FAILURE;
-	}
-
-	if(MONITOR_LOCK(streams_list)) {
-		if ((ts = zend_hash_str_find_ptr(&streams_list->ht, key, strlen(key))) != NULL) {
-			*threaded_stream = ts;
-			MONITOR_UNLOCK(streams_list);
-
-			return PTHREADS_STREAM_PERSISTENT_SUCCESS;
-		}
-		MONITOR_UNLOCK(streams_list);
-	}
-	return PTHREADS_STREAM_PERSISTENT_NOT_EXIST;
 }
 
 void pthreads_init_streams() {
@@ -155,7 +133,6 @@ void pthreads_init_streams() {
 	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_FILTER_WRITE")			, PTHREADS_STREAM_FILTER_WRITE);
 	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_FILTER_ALL")				, PTHREADS_STREAM_FILTER_ALL);
 
-	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CLIENT_PERSISTENT")		, PTHREADS_STREAM_CLIENT_PERSISTENT);
 	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CLIENT_ASYNC_CONNECT")	, PTHREADS_STREAM_CLIENT_ASYNC_CONNECT);
 	zend_declare_class_constant_long(pthreads_streams_entry, ZEND_STRL("STREAM_CLIENT_CONNECT")			, PTHREADS_STREAM_CLIENT_CONNECT);
 
@@ -270,7 +247,7 @@ zend_bool stream_lock(pthreads_stream_t *threaded_stream) {
 	return locked;
 }
 
-pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *abstract, const char *mode, const char *key, zend_class_entry *stream_ce) {
+pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *abstract, const char *mode, zend_class_entry *stream_ce) {
 	pthreads_stream_t *threaded_stream = NULL;
 	pthreads_stream *stream = NULL;
 	pthreads_hashtable *streams_list;
@@ -292,16 +269,9 @@ pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *ab
 
 	PTHREADS_FETCH_STREAMS_STREAM(threaded_stream) = stream;
 
-	if(key) {
-		streams_list = &PTHREADS_STREAMG(streams_list);
-		str = zend_string_init(key, strlen(key), 1);
+	pthreads_set_parent_stream(threaded_stream, NULL);
+	pthreads_stream_set_context(threaded_stream, NULL);
 
-		if(MONITOR_LOCK(streams_list)) {
-			zend_hash_add_ptr(&streams_list->ht, str, threaded_stream);
-			MONITOR_UNLOCK(streams_list);
-		}
-		zend_string_release(str);
-	}
 	return threaded_stream;
 }
 
@@ -337,6 +307,10 @@ pthreads_stream_wrapper_t *pthreads_stream_wrapper_new() {
 
 pthreads_stream_context_t *pthreads_stream_context_new() {
 	return pthreads_object_init(pthreads_stream_context_entry);
+}
+
+int pthreads_stream_has_threaded_property(pthreads_object_t *threaded, int property) {
+	return pthreads_stream_read_threaded_property(threaded, property) == NULL ? 0 : 1;
 }
 
 pthreads_object_t *pthreads_stream_read_threaded_property(pthreads_object_t *threaded, int property) {
@@ -424,9 +398,9 @@ void pthreads_stream_notification_free(pthreads_stream_notifier *notifier) {
 
 pthreads_stream_context_t *pthreads_stream_context_set(pthreads_stream_t *threaded_stream, pthreads_stream_context_t *threaded_context) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
-	pthreads_stream_context_t *oldcontext = PTHREADS_STREAM_GET_CONTEXT(stream);
+	pthreads_stream_context_t *oldcontext = pthreads_stream_get_context(threaded_stream);
 
-	PTHREADS_STREAM_SET_CONTEXT(stream, threaded_context);
+	pthreads_stream_set_context(threaded_stream, threaded_context);
 
 	if (oldcontext) {
 		zval ctx;
@@ -494,7 +468,12 @@ int pthreads_stream_context_set_option(pthreads_stream_context_t *threaded_conte
 }
 
 void pthreads_stream_notify_info(pthreads_stream_context_t *threaded_context, int code, char *xmsg, int xcode) {
-	pthreads_stream_context *context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
+	pthreads_stream_context *context;
+
+	if(!threaded_context) {
+		return;
+	}
+	context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
 
 	if(MONITOR_LOCK(threaded_context)) {
 		if (context && context->notifier) {
@@ -505,7 +484,12 @@ void pthreads_stream_notify_info(pthreads_stream_context_t *threaded_context, in
 }
 
 void pthreads_stream_notify_progress(pthreads_stream_context_t *threaded_context, size_t bsofar, size_t bmax) {
-	pthreads_stream_context *context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
+	pthreads_stream_context *context;
+
+	if(!threaded_context) {
+		return;
+	}
+	context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
 
 	if(MONITOR_LOCK(threaded_context)) {
 		if (context && context->notifier) {
@@ -516,7 +500,12 @@ void pthreads_stream_notify_progress(pthreads_stream_context_t *threaded_context
 }
 
 void pthreads_stream_notify_progress_init(pthreads_stream_context_t *threaded_context, size_t sofar, size_t bmax) {
-	pthreads_stream_context *context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
+	pthreads_stream_context *context;
+
+	if(!threaded_context) {
+		return;
+	}
+	context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
 
 	if(MONITOR_LOCK(threaded_context)) {
 		if (context && context->notifier) {
@@ -531,7 +520,12 @@ void pthreads_stream_notify_progress_init(pthreads_stream_context_t *threaded_co
 }
 
 void pthreads_stream_notify_progress_increment(pthreads_stream_context_t *threaded_context, size_t sofar, size_t max) {
-	pthreads_stream_context *context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
+	pthreads_stream_context *context;
+
+	if(!threaded_context) {
+		return;
+	}
+	context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
 
 	if(MONITOR_LOCK(threaded_context)) {
 		if (context && context->notifier && context->notifier->mask & PTHREADS_STREAM_NOTIFIER_PROGRESS) {
@@ -545,7 +539,12 @@ void pthreads_stream_notify_progress_increment(pthreads_stream_context_t *thread
 }
 
 void pthreads_stream_notify_file_size(pthreads_stream_context_t *threaded_context, size_t file_size, char *xmsg, int xcode) {
-	pthreads_stream_context *context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
+	pthreads_stream_context *context;
+
+	if(!threaded_context) {
+		return;
+	}
+	context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
 
 	if(MONITOR_LOCK(threaded_context)) {
 		if (context && context->notifier) {
@@ -556,7 +555,12 @@ void pthreads_stream_notify_file_size(pthreads_stream_context_t *threaded_contex
 }
 
 void pthreads_stream_notify_error(pthreads_stream_context_t *threaded_context, int code, char *xmsg, int xcode) {
-	pthreads_stream_context *context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
+	pthreads_stream_context *context;
+
+	if(!threaded_context) {
+		return;
+	}
+	context = PTHREADS_FETCH_STREAMS_CONTEXT(threaded_context);
 
 	if(MONITOR_LOCK(threaded_context)) {
 		if (context && context->notifier) {
@@ -578,7 +582,6 @@ pthreads_stream *_pthreads_stream_alloc(const pthreads_stream_ops *ops, void *ab
 fprintf(stderr, "stream_alloc: %s:%p\n", ops->label, ret);
 #endif
 
-	ret->storage = pthreads_object_init(pthreads_volatile_entry);
 	ret->state = PTHREADS_STREAM_STATE_OPEN;
 	ret->ops = ops;
 	ret->abstract = abstract;
@@ -597,46 +600,35 @@ fprintf(stderr, "stream_alloc: %s:%p\n", ops->label, ret);
 	ret->orig_path        = NULL;
 	ret->readbuf          = NULL;
 
-	PTHREADS_STREAM_SET_ENCLOSING_STREAM(ret, NULL);
-
 	return ret;
 }
 /* }}} */
 
 /* {{{ */
-int _pthreads_stream_close_enclosed(pthreads_stream_t *threaded_stream_enclosed, int close_options)
-{
+int _pthreads_stream_close_ignore_parent(pthreads_stream_t *threaded_stream_enclosed, int close_options) {
 	return pthreads_stream_close(threaded_stream_enclosed,
-		close_options | PTHREADS_STREAM_FREE_IGNORE_ENCLOSING);
+		close_options | PTHREADS_STREAM_FREE_IGNORE_PARENT);
 }
 /* }}} */
 
 #if PTHREADS_STREAM_DEBUG
-static const char *_pthreads_stream_pretty_free_options(int close_options, char *out)
-{
+static const char *_pthreads_stream_pretty_free_options(int close_options, char *out) {
 	if (close_options & PTHREADS_STREAM_FREE_CALL_DTOR)
 		strcat(out, "CALL_DTOR, ");
 	if (close_options & PTHREADS_STREAM_FREE_PRESERVE_HANDLE)
 		strcat(out, "PREVERSE_HANDLE, ");
-	if (close_options & PTHREADS_STREAM_FREE_IGNORE_ENCLOSING)
-		strcat(out, "IGNORE_ENCLOSING, ");
+	if (close_options & PTHREADS_STREAM_FREE_IGNORE_PARENT)
+		strcat(out, "IGNORE_PARENT, ");
 	if (out[0] != '\0')
 		out[strlen(out) - 2] = '\0';
 	return out;
 }
 #endif
 
-
-static int _pthreads_stream_free_persistent(zval *zv, void *pStream)
-{
-	pthreads_stream_t *threaded_stream = Z_PTR_P(zv);
-	return threaded_stream == pStream;
-}
-
 /* {{{ */
 int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options, int skip_check) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
-	pthreads_stream_t *enclosing_stream;
+	pthreads_stream_t *parent_stream;
 	pthreads_hashtable *streams_list;
 	zend_string *str;
 	int ret = 1;
@@ -658,23 +650,37 @@ int _pthreads_stream_close(pthreads_stream_t *threaded_stream, int close_options
 		}
 
 #endif
+
 		if (stream->in_free) {
 			/* hopefully called recursively from the enclosing stream; the pointer was NULLed below */
 			stream_unlock(threaded_stream);
 			return 1; /* recursion protection */
 		}
-
 		stream->in_free++;
 
-		enclosing_stream = PTHREADS_STREAM_GET_ENCLOSING_STREAM(stream);
+		parent_stream = pthreads_get_parent_stream(threaded_stream);
 
 		/* force correct order on enclosing/enclosed stream destruction */
-		if (enclosing_stream != NULL && threaded_stream != enclosing_stream && !(close_options & PTHREADS_STREAM_FREE_IGNORE_ENCLOSING) &&
+		if (parent_stream != NULL && !PTHREADS_IS_STREAM_CLOSING(PTHREADS_FETCH_STREAMS_STREAM(parent_stream)) &&
+				threaded_stream != parent_stream && !(close_options & PTHREADS_STREAM_FREE_IGNORE_PARENT) &&
 				(close_options & PTHREADS_STREAM_FREE_CALL_DTOR)) { /* always? */
-			PTHREADS_STREAM_DELETE_ENCLOSING_STREAM(stream);
+			pthreads_delete_parent_stream(stream);
 
-			ret = pthreads_stream_close(enclosing_stream,
+			/* remove closing state, otherwise ops->close() can not close this innerstream */
+			stream->state &= ~PTHREADS_STREAM_STATE_CLOSING;
+
+			ret = pthreads_stream_close(parent_stream,
 							(close_options | PTHREADS_STREAM_FREE_CALL_DTOR));
+
+			/**
+			 * Scenario (innerstream gets closed before linked parent stream)
+			 * 1. pthreads_stream_close(innerstream)
+			 * 2. innerstream has parent
+			 * 3. innerstream -> pthreads_stream_close(parent_stream)
+			 * 4. parent_stream -> ops->close()
+			 * 5. ops->close() -> pthreads_stream_close_ignore_parent(innerstream)
+			 * 6. close innerstream properly
+			 */
 
 			stream_unlock(threaded_stream);
 			/* we force PTHREADS_STREAM_CALL_DTOR because that's from where the
@@ -736,17 +742,7 @@ fprintf(stderr, "stream_close: %s:%p[%s] preserve_handle=%d\n",
 				stream->fclose_stdiocast = PTHREADS_STREAM_FCLOSE_NONE;
 			}
 		}
-
-		if (close_options & PTHREADS_STREAM_FREE_PERSISTENT) {
-			streams_list = &PTHREADS_STREAMG(streams_list);
-
-			if(MONITOR_LOCK(streams_list)) {
-				zend_hash_apply_with_argument(&streams_list->ht, _pthreads_stream_free_persistent, threaded_stream);
-				MONITOR_UNLOCK(streams_list);
-			}
-		}
 		stream->state |= PTHREADS_STREAM_STATE_CLOSED;
-
 		stream_unlock(threaded_stream);
 
 		zval sobj;
@@ -773,7 +769,7 @@ fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d\n",
 		stream->ops->free(threaded_stream, stream->preserve_handle ? 0 : 1);
 		stream->abstract = NULL;
 
-		threaded_context = PTHREADS_STREAM_GET_CONTEXT(stream);
+		threaded_context = pthreads_stream_get_context(threaded_stream);
 
 		while (stream->readfilters.head) {
 			pthreads_stream_filter_remove(stream->readfilters.head);
@@ -782,12 +778,12 @@ fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d\n",
 		while (stream->writefilters.head) {
 			pthreads_stream_filter_remove(stream->writefilters.head);
 		}
+
 		stream->readfilters.stream = NULL;
 		stream->writefilters.stream = NULL;
 
 		if(stream->wrapper) {
 			wrapper = PTHREADS_FETCH_STREAMS_WRAPPER(stream->wrapper);
-
 			if (wrapper && wrapper->wops && wrapper->wops->stream_closer) {
 				wrapper->wops->stream_closer(stream->wrapper, threaded_stream);
 				stream->wrapper = NULL;
@@ -810,10 +806,9 @@ fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d\n",
 		}
 
 		if(threaded_context) {
-			PTHREADS_STREAM_DELETE_CONTEXT(stream);
+			pthreads_stream_delete_context(threaded_context);
 			pthreads_ptr_dtor(threaded_context);
 		}
-		pthreads_ptr_dtor(stream->storage);
 
 		free(stream);
 

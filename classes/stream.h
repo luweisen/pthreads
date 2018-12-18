@@ -256,7 +256,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(SocketStream_createClient, 0, 1, SocketSt
 	ZEND_ARG_TYPE_INFO(1, errstr, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, timeout, IS_DOUBLE, 0)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
-	ZEND_ARG_OBJ_INFO(0, context, StreamContext, 0)
+	ZEND_ARG_OBJ_INFO(0, context, StreamContext, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(SocketStream_createServer, 0, 1, SocketStream, 1)
@@ -264,7 +264,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(SocketStream_createServer, 0, 1, SocketSt
 	ZEND_ARG_TYPE_INFO(1, errno, IS_LONG, 1)
 	ZEND_ARG_TYPE_INFO(1, errstr, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, flags, IS_LONG, 0)
-	ZEND_ARG_OBJ_INFO(0, context, StreamContext, 0)
+	ZEND_ARG_OBJ_INFO(0, context, StreamContext, 1)
 ZEND_END_ARG_INFO()
 
 #if HAVE_SOCKETPAIR
@@ -643,7 +643,7 @@ PHP_METHOD(Stream, enableCrypto) {
 		zval *val;
 		pthreads_stream_t *threaded_stream = PTHREADS_FETCH_FROM(Z_OBJ_P(getThis()));
 
-		if (!PTHREADS_GET_CTX_OPT(PTHREADS_FETCH_STREAMS_STREAM(threaded_stream), "ssl", "crypto_method", val)) {
+		if (!PTHREADS_GET_CTX_OPT(threaded_stream, "ssl", "crypto_method", val)) {
 			php_error_docref(NULL, E_WARNING, "When enabling encryption you must specify the crypto type");
 			RETURN_FALSE;
 		}
@@ -852,43 +852,43 @@ PHP_METHOD(Stream, fromResource) {
 			float timeout = ini_get("default_socket_timeout") [, int flags = PTHREADS_STREAM_CLIENT_CONNECT [, StreamContext context ]]]]]) */
 PHP_METHOD(SocketStream, createClient) {
 	zend_string *remote_socket = NULL;
-	zval *context, *errstr, *errorno = NULL;
+	zval *zcontext = NULL, *errstr, *errorno = NULL;
 	double timeout = (double)FG(default_socket_timeout);
 	zend_long flags = PTHREADS_STREAM_CLIENT_CONNECT;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|l/!S/!dlO", &remote_socket, &errorno, &errstr, &timeout, &flags, &context, pthreads_stream_context_entry) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|z/z/dlO", &remote_socket, &errorno, &errstr, &timeout, &flags, &zcontext, pthreads_stream_context_entry) != SUCCESS) {
 		RETURN_NULL();
 	}
 
-	if (!instanceof_function(Z_OBJCE_P(context), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext) && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
-			ZSTR_VAL(Z_OBJCE_P(context)->name));
+			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
 		RETURN_NULL();
 	}
 
-	pthreads_streams_api_socket_stream_create_client(remote_socket, errorno, errstr, timeout, flags, context, return_value);
+	pthreads_streams_api_socket_stream_create_client(remote_socket, errorno, errstr, timeout, flags, zcontext, return_value);
 } /* }}} */
 
 /* {{{ proto static SocketStream|null SocketStream::createServer(string local_socket [, int &errno [, string &errstr [,
  	 	 	 int flags = PTHREADS_STREAM_SERVER_BIND | PTHREADS_STREAM_SERVER_LISTEN [, StreamContext context ]]]]]) */
 PHP_METHOD(SocketStream, createServer) {
 	zend_string *local_socket = NULL;
-	zval *context, *errstr, *errorno = NULL;
+	zval *zcontext = NULL, *errstr, *errorno = NULL;
 	zend_long flags = PTHREADS_STREAM_XPORT_BIND | PTHREADS_STREAM_XPORT_LISTEN;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|l/!S/!lO", &local_socket, &errorno, &errstr, &flags, &context, pthreads_stream_context_entry) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|z/z/lO", &local_socket, &errorno, &errstr, &flags, &zcontext, pthreads_stream_context_entry) != SUCCESS) {
 		RETURN_NULL();
 	}
 
-	if (!instanceof_function(Z_OBJCE_P(context), pthreads_stream_context_entry)) {
+	if (zcontext != NULL && !Z_ISNULL_P(zcontext)  && !instanceof_function(Z_OBJCE_P(zcontext), pthreads_stream_context_entry)) {
 		zend_throw_exception_ex(spl_ce_RuntimeException,
 			0, "only StreamContext objects may be submitted, %s is no StreamContext",
-			ZSTR_VAL(Z_OBJCE_P(context)->name));
+			ZSTR_VAL(Z_OBJCE_P(zcontext)->name));
 		RETURN_NULL();
 	}
 
-	pthreads_streams_api_socket_stream_create_server(local_socket, errorno, errstr, flags, context, return_value);
+	pthreads_streams_api_socket_stream_create_server(local_socket, errorno, errstr, flags, zcontext, return_value);
 } /* }}} */
 
 #if HAVE_SOCKETPAIR
@@ -909,7 +909,7 @@ PHP_METHOD(SocketStream, accept) {
 	double timeout = (double)FG(default_socket_timeout);
 	zval *zpeername = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "|dz/!", &timeout, &zpeername) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "|dz/", &timeout, &zpeername) != SUCCESS) {
 		RETURN_NULL();
 	}
 
@@ -932,7 +932,7 @@ PHP_METHOD(SocketStream, recvfrom) {
 	zend_long length, flags = 0;
 	zend_string *address = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|lz/!", &length, &flags, &address) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|lz/", &length, &flags, &address) != SUCCESS) {
 		RETURN_NULL();
 	}
 

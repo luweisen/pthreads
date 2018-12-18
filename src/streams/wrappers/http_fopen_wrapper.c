@@ -174,7 +174,7 @@ static pthreads_stream_t *pthreads_stream_url_wrap_http_ex(pthreads_stream_wrapp
 
 	threaded_stream = pthreads_stream_xport_create(transport_string, transport_len, options,
 			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT,
-			NULL, &timeout, threaded_context, &errstr, NULL);
+			&timeout, threaded_context, &errstr, NULL);
 
 	if (threaded_stream) {
 		pthreads_stream_set_option(threaded_stream, PTHREADS_STREAM_OPTION_READ_TIMEOUT, 0, &timeout);
@@ -195,7 +195,7 @@ static pthreads_stream_t *pthreads_stream_url_wrap_http_ex(pthreads_stream_wrapp
 		/* Set peer_name or name verification will try to use the proxy server name */
 		if (!threaded_context || (tmpzval = pthreads_stream_context_get_option(threaded_context, "ssl", "peer_name")) == NULL) {
 			ZVAL_STR_COPY(&ssl_proxy_peer_name, resource->host);
-			pthreads_stream_context_set_option(PTHREADS_STREAM_CONTEXT(stream), "ssl", "peer_name", &ssl_proxy_peer_name);
+			pthreads_stream_context_set_option(pthreads_stream_get_context(threaded_stream), "ssl", "peer_name", &ssl_proxy_peer_name);
 			zval_ptr_dtor(&ssl_proxy_peer_name);
 		}
 

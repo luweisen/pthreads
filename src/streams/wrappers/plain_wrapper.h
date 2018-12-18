@@ -21,7 +21,6 @@
 /* definitions for the plain files wrapper */
 
 extern pthreads_stream_ops pthreads_stream_stdio_ops;
-//extern pthreads_stream_ops pthreads_plain_files_dirstream_ops;
 extern const pthreads_stream_wrapper_ops pthreads_plain_files_wrapper_ops;
 
 /* like fopen, but returns a stream */
@@ -34,11 +33,11 @@ pthreads_stream_t *_pthreads_stream_fopen_with_path(const char *filename, const 
 pthreads_stream_t *_pthreads_stream_fopen_from_file(FILE *file, const char *mode);
 #define pthreads_stream_fopen_from_file(file, mode)	_pthreads_stream_fopen_from_file((file), (mode))
 
-pthreads_stream_t *_pthreads_stream_fopen_from_fd(int fd, const char *mode, const char *key);
-#define pthreads_stream_fopen_from_fd(fd, mode, key)	_pthreads_stream_fopen_from_fd((fd), (mode), (key))
+pthreads_stream_t *_pthreads_stream_fopen_from_fd(int fd, const char *mode);
+#define pthreads_stream_fopen_from_fd(fd, mode)	_pthreads_stream_fopen_from_fd((fd), (mode))
 
-pthreads_stream_t *_pthreads_stream_fopen_from_pipe(FILE *file, const char *mode, const char *key, zend_class_entry *ce);
-#define pthreads_stream_fopen_from_pipe(file, mode, key)	_pthreads_stream_fopen_from_pipe((file), (mode), (key), NULL)
+pthreads_stream_t *_pthreads_stream_fopen_from_pipe(FILE *file, const char *mode, zend_class_entry *ce);
+#define pthreads_stream_fopen_from_pipe(file, mode)	_pthreads_stream_fopen_from_pipe((file), (mode), NULL)
 
 pthreads_stream_t *_pthreads_stream_fopen_tmpfile(int dummy);
 #define pthreads_stream_fopen_tmpfile()	_pthreads_stream_fopen_tmpfile(0)

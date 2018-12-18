@@ -687,6 +687,7 @@ pthreads_stream_t *_pthreads_stream_open_wrapper_ex(const char *path, const char
 	if (resolved_path) {
 		zend_string_release(resolved_path);
 	}
+
 	return threaded_stream;
 }
 /* }}} */

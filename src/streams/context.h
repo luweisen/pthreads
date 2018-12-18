@@ -37,7 +37,7 @@ typedef void (*pthreads_stream_notification_func)(pthreads_stream_context *conte
    If no context was passed, use the default context
    The default context has not yet been created, do it now. */
 #define pthreads_stream_context_from_zval(zcontext, nocontext) ( \
-		(zcontext) ? PTHREADS_FETCH_FROM(Z_OBJ_P(zcontext)) : \
+		(zcontext) && !Z_ISNULL_P(zcontext) ? PTHREADS_FETCH_FROM(Z_OBJ_P(zcontext)) : \
 		(nocontext) ? NULL : PTHREADS_GET_DEF_CONTEXT )
 
 #define pthreads_stream_context_to_zval(context, zval) { ZVAL_OBJ(zval, context); Z_ADDREF_P((zval)); }

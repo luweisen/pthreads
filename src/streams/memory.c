@@ -33,6 +33,10 @@
 #	include <src/streams/memory.h>
 #endif
 
+#ifndef HAVE_PTHREADS_OBJECT_H
+#	include <src/object.h>
+#endif
+
 size_t pthreads_url_decode(char *str, size_t len);
 
 /* Memory streams use a dynamic memory buffer to emulate a stream.
@@ -337,7 +341,7 @@ const char *_pthreads_stream_mode_to_str(int mode)
 /* }}} */
 
 /* {{{ */
-pthreads_stream_t *_pthreads_stream_memory_create(int mode) {
+pthreads_stream_t *_pthreads_stream_memory_create(int mode, zend_class_entry *ce) {
 	pthreads_stream_memory_data *self;
 	pthreads_stream_t *threaded_stream;
 
@@ -348,7 +352,10 @@ pthreads_stream_t *_pthreads_stream_memory_create(int mode) {
 	self->smax = ~0u;
 	self->mode = mode;
 
-	threaded_stream = PTHREADS_STREAM_NEW(&pthreads_stream_memory_ops, self, _pthreads_stream_mode_to_str(mode), 0);
+	if(ce == NULL) {
+		ce = pthreads_file_stream_entry;
+	}
+	threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_memory_ops, self, _pthreads_stream_mode_to_str(mode), ce);
 	PTHREADS_FETCH_STREAMS_STREAM(threaded_stream)->flags |= PTHREADS_STREAM_FLAG_NO_BUFFER;
 
 	return threaded_stream;
@@ -356,12 +363,12 @@ pthreads_stream_t *_pthreads_stream_memory_create(int mode) {
 /* }}} */
 
 /* {{{ */
-pthreads_stream_t *_pthreads_stream_memory_open(int mode, char *buf, size_t length) {
+pthreads_stream_t *_pthreads_stream_memory_open(int mode, char *buf, size_t length, zend_class_entry *ce) {
 	pthreads_stream *stream;
 	pthreads_stream_t *threaded_stream;
 	pthreads_stream_memory_data *ms;
 
-	if ((threaded_stream = pthreads_stream_memory_create(mode)) != NULL) {
+	if ((threaded_stream = pthreads_stream_memory_create(mode, ce)) != NULL) {
 		stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 		ms = (pthreads_stream_memory_data*)stream->abstract;
 
@@ -409,25 +416,29 @@ typedef struct {
 	int			       mode;
 	zval               meta;
 	char*		       tmpdir;
+	pthreads_object_t  *storage;
 } pthreads_stream_temp_data;
 
 
 /* {{{ */
 static size_t pthreads_stream_temp_write(pthreads_stream_t *threaded_stream, const char *buf, size_t count) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
+	size_t ret = -1;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
 		assert(ts != NULL);
+		innerstream = pthreads_get_inner_stream(threaded_stream);
 
-		if (!ts->innerstream) {
+		if (!innerstream) {
 			stream_unlock(threaded_stream);
 			return -1;
 		}
 
-		if (pthreads_stream_is(ts->innerstream, PTHREADS_STREAM_IS_MEMORY)) {
+		if (pthreads_stream_is(innerstream, PTHREADS_STREAM_IS_MEMORY)) {
 			size_t memsize;
-			char *membuf = pthreads_stream_memory_get_buffer(ts->innerstream, &memsize);
+			char *membuf = pthreads_stream_memory_get_buffer(innerstream, &memsize);
 
 			if (memsize + count >= ts->smax) {
 				pthreads_stream_t *threaded_file = pthreads_stream_fopen_temporary_file(ts->tmpdir, "php", NULL);
@@ -437,36 +448,42 @@ static size_t pthreads_stream_temp_write(pthreads_stream_t *threaded_stream, con
 					return 0;
 				}
 				pthreads_stream_write(threaded_file, membuf, memsize);
-				pthreads_stream_close_enclosed(ts->innerstream, PTHREADS_STREAM_FREE_CLOSE);
-				ts->innerstream = threaded_file;
-				pthreads_stream_encloses(threaded_stream, ts->innerstream);
+				pthreads_stream_close_ignore_parent(innerstream, PTHREADS_STREAM_FREE_CLOSE);
+
+				pthreads_set_inner_stream(threaded_stream, threaded_file);
+				pthreads_stream_set_parent(innerstream, threaded_stream);
+
+				pthreads_del_ref(innerstream);
+				pthreads_del_ref(threaded_stream);
 			}
 		}
-		stream_unlock(threaded_stream);
+		ret = pthreads_stream_write(innerstream, buf, count);
 
-		return pthreads_stream_write(ts->innerstream, buf, count);
+		stream_unlock(threaded_stream);
 	}
-	return -1;
+	return ret;
 }
 /* }}} */
 
 /* {{{ */
 static size_t pthreads_stream_temp_read(pthreads_stream_t *threaded_stream, char *buf, size_t count) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
 		size_t got;
 
 		assert(ts != NULL);
+		innerstream = pthreads_get_inner_stream(threaded_stream);
 
-		if (!ts->innerstream) {
+		if (!innerstream) {
 			stream_unlock(threaded_stream);
 			return -1;
 		}
-		got = pthreads_stream_read(ts->innerstream, buf, count);
+		got = pthreads_stream_read(innerstream, buf, count);
 
-		stream->eof = PTHREADS_FETCH_STREAMS_STREAM(ts->innerstream)->eof;
+		stream->eof = PTHREADS_FETCH_STREAMS_STREAM(innerstream)->eof;
 		stream_unlock(threaded_stream);
 
 		return got;
@@ -478,14 +495,17 @@ static size_t pthreads_stream_temp_read(pthreads_stream_t *threaded_stream, char
 /* {{{ */
 static int pthreads_stream_temp_close(pthreads_stream_t *threaded_stream, int close_handle) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 
 	pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
 	int ret;
 
 	assert(ts != NULL);
 
-	if (ts->innerstream) {
-		ret = pthreads_stream_close_enclosed(ts->innerstream, PTHREADS_STREAM_FREE_CLOSE | (close_handle ? 0 : PTHREADS_STREAM_FREE_PRESERVE_HANDLE));
+	innerstream = pthreads_get_inner_stream(threaded_stream);
+
+	if (innerstream) {
+		ret = pthreads_stream_close_ignore_parent(innerstream, PTHREADS_STREAM_FREE_CLOSE | (close_handle ? 0 : PTHREADS_STREAM_FREE_PRESERVE_HANDLE));
 	} else {
 		ret = 0;
 	}
@@ -513,12 +533,14 @@ static void pthreads_stream_temp_free(pthreads_stream_t *threaded_stream, int cl
 /* {{{ */
 static int pthreads_stream_temp_flush(pthreads_stream_t *threaded_stream) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 	int result = -1;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
 		assert(ts != NULL);
-		result = ts->innerstream ? pthreads_stream_flush(ts->innerstream) : -1;
+		innerstream = pthreads_get_inner_stream(threaded_stream);
+		result = innerstream ? pthreads_stream_flush(innerstream) : -1;
 
 		stream_unlock(threaded_stream);
 	}
@@ -529,20 +551,22 @@ static int pthreads_stream_temp_flush(pthreads_stream_t *threaded_stream) {
 /* {{{ */
 static int pthreads_stream_temp_seek(pthreads_stream_t *threaded_stream, zend_off_t offset, int whence, zend_off_t *newoffs) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 	int ret = -1;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
 		assert(ts != NULL);
+		innerstream = pthreads_get_inner_stream(threaded_stream);
 
-		if (!ts->innerstream) {
+		if (!innerstream) {
 			*newoffs = -1;
 			stream_unlock(threaded_stream);
 			return ret;
 		}
-		ret = pthreads_stream_seek(ts->innerstream, offset, whence);
-		*newoffs = pthreads_stream_tell(ts->innerstream);
-		stream->eof = PTHREADS_FETCH_STREAMS_STREAM(ts->innerstream)->eof;
+		ret = pthreads_stream_seek(innerstream, offset, whence);
+		*newoffs = pthreads_stream_tell(innerstream);
+		stream->eof = PTHREADS_FETCH_STREAMS_STREAM(innerstream)->eof;
 
 		stream_unlock(threaded_stream);
 	}
@@ -553,6 +577,7 @@ static int pthreads_stream_temp_seek(pthreads_stream_t *threaded_stream, zend_of
 /* {{{ */
 static int pthreads_stream_temp_cast(pthreads_stream_t *threaded_stream, int castas, void **ret) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
@@ -562,13 +587,15 @@ static int pthreads_stream_temp_cast(pthreads_stream_t *threaded_stream, int cas
 		zend_off_t pos;
 
 		assert(ts != NULL);
+		innerstream = pthreads_get_inner_stream(threaded_stream);
 
-		if (!ts->innerstream) {
+		if (!innerstream) {
+			stream_unlock(threaded_stream);
 			return FAILURE;
 		}
 
-		if (pthreads_stream_is(ts->innerstream, PTHREADS_STREAM_IS_STDIO)) {
-			int result = pthreads_stream_cast(ts->innerstream, castas, ret, 0);
+		if (pthreads_stream_is(innerstream, PTHREADS_STREAM_IS_STDIO)) {
+			int result = pthreads_stream_cast(innerstream, castas, ret, 0);
 			stream_unlock(threaded_stream);
 			return result;
 		}
@@ -595,16 +622,24 @@ static int pthreads_stream_temp_cast(pthreads_stream_t *threaded_stream, int cas
 		}
 
 		/* perform the conversion and then pass the request on to the innerstream */
-		membuf = pthreads_stream_memory_get_buffer(ts->innerstream, &memsize);
+		membuf = pthreads_stream_memory_get_buffer(innerstream, &memsize);
 		pthreads_stream_write(threaded_file, membuf, memsize);
-		pos = pthreads_stream_tell(ts->innerstream);
+		pos = pthreads_stream_tell(innerstream);
 
-		pthreads_stream_close_enclosed(ts->innerstream, PTHREADS_STREAM_FREE_CLOSE);
-		ts->innerstream = threaded_file;
-		pthreads_stream_encloses(threaded_stream, ts->innerstream);
-		pthreads_stream_seek(ts->innerstream, pos, SEEK_SET);
+		pthreads_stream_close_ignore_parent(innerstream, PTHREADS_STREAM_FREE_CLOSE);
+		pthreads_set_inner_stream(threaded_stream, threaded_file);
 
-		int result = pthreads_stream_cast(ts->innerstream, castas, ret, 1);
+		/* switch to new innerstream*/
+		innerstream = threaded_file;
+
+		pthreads_stream_set_parent(innerstream, threaded_stream);
+
+		pthreads_del_ref(innerstream);
+		pthreads_del_ref(threaded_stream);
+
+		pthreads_stream_seek(innerstream, pos, SEEK_SET);
+
+		int result = pthreads_stream_cast(innerstream, castas, ret, 1);
 
 		stream_unlock(threaded_stream);
 
@@ -617,16 +652,19 @@ static int pthreads_stream_temp_cast(pthreads_stream_t *threaded_stream, int cas
 /* {{{ */
 static int pthreads_stream_temp_stat(pthreads_stream_t *threaded_stream, pthreads_stream_statbuf *ssb) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 	int ret = -1;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
+		assert(ts != NULL);
+		innerstream = pthreads_get_inner_stream(threaded_stream);
 
-		if (!ts || !ts->innerstream) {
+		if (!ts || !innerstream) {
 			stream_unlock(threaded_stream);
 			return ret;
 		}
-		ret = pthreads_stream_stat(ts->innerstream, ssb);
+		ret = pthreads_stream_stat(innerstream, ssb);
 		stream_unlock(threaded_stream);
 	}
 	return ret;
@@ -636,10 +674,14 @@ static int pthreads_stream_temp_stat(pthreads_stream_t *threaded_stream, pthread
 /* {{{ */
 static int pthreads_stream_temp_set_option(pthreads_stream_t *threaded_stream, int option, int value, void *ptrparam) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
+	pthreads_stream_t *innerstream;
 	int ret = -1;
 
 	if(stream_lock(threaded_stream)) {
 		pthreads_stream_temp_data *ts = (pthreads_stream_temp_data*)stream->abstract;
+
+		assert(ts != NULL);
+		innerstream = pthreads_get_inner_stream(threaded_stream);
 
 		switch(option) {
 			case PTHREADS_STREAM_OPTION_META_DATA_API:
@@ -650,8 +692,8 @@ static int pthreads_stream_temp_set_option(pthreads_stream_t *threaded_stream, i
 
 				return PTHREADS_STREAM_OPTION_RETURN_OK;
 			default:
-				if (ts->innerstream) {
-					ret = pthreads_stream_set_option(ts->innerstream, option, value, ptrparam);
+				if (innerstream) {
+					ret = pthreads_stream_set_option(innerstream, option, value, ptrparam);
 					stream_unlock(threaded_stream);
 
 					return ret;
@@ -679,9 +721,9 @@ const pthreads_stream_ops pthreads_stream_temp_ops = {
 /* }}} */
 
 /* {{{ _pthreads_stream_temp_create_ex */
-pthreads_stream_t *_pthreads_stream_temp_create_ex(int mode, size_t max_memory_usage, const char *tmpdir) {
+pthreads_stream_t *_pthreads_stream_temp_create_ex(int mode, size_t max_memory_usage, const char *tmpdir, zend_class_entry *ce) {
 	pthreads_stream_temp_data *self;
-	pthreads_stream_t *threaded_stream;
+	pthreads_stream_t *threaded_stream, *innerstream;
 
 	self = calloc(1, sizeof(*self));
 	self->smax = max_memory_usage;
@@ -690,29 +732,38 @@ pthreads_stream_t *_pthreads_stream_temp_create_ex(int mode, size_t max_memory_u
 	if (tmpdir) {
 		self->tmpdir = strdup(tmpdir);
 	}
-	threaded_stream = PTHREADS_STREAM_NEW(&pthreads_stream_temp_ops, self, _pthreads_stream_mode_to_str(mode), 0);
+	threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_temp_ops, self, _pthreads_stream_mode_to_str(mode), ce);
 	PTHREADS_FETCH_STREAMS_STREAM(threaded_stream)->flags |= PTHREADS_STREAM_FLAG_NO_BUFFER;
-	self->innerstream = pthreads_stream_memory_create(mode);
-	pthreads_stream_encloses(threaded_stream, self->innerstream);
+
+	innerstream = pthreads_stream_memory_create(mode, ce);
+
+	pthreads_set_inner_stream(threaded_stream, innerstream);
+
+	pthreads_stream_set_parent(innerstream, threaded_stream);
+
+	pthreads_del_ref(innerstream);
+	pthreads_del_ref(threaded_stream);
 
 	return threaded_stream;
 }
 /* }}} */
 
 /* {{{ _pthreads_stream_temp_create */
-pthreads_stream_t *_pthreads_stream_temp_create(int mode, size_t max_memory_usage)
-{
-	return pthreads_stream_temp_create_ex(mode, max_memory_usage, NULL);
+pthreads_stream_t *_pthreads_stream_temp_create(int mode, size_t max_memory_usage, zend_class_entry *ce) {
+	if(ce == NULL) {
+		ce = pthreads_file_stream_entry;
+	}
+	return pthreads_stream_temp_create_ex(mode, max_memory_usage, NULL, ce);
 }
 /* }}} */
 
 /* {{{ _pthreads_stream_temp_open */
-pthreads_stream_t *_pthreads_stream_temp_open(int mode, size_t max_memory_usage, char *buf, size_t length) {
+pthreads_stream_t *_pthreads_stream_temp_open(int mode, size_t max_memory_usage, char *buf, size_t length, zend_class_entry *ce) {
 	pthreads_stream_t *threaded_stream;
 	pthreads_stream_temp_data *ts;
 	zend_off_t newoffs;
 
-	if ((threaded_stream = pthreads_stream_temp_create(mode, max_memory_usage)) != NULL) {
+	if ((threaded_stream = pthreads_stream_temp_create(mode, max_memory_usage, ce)) != NULL) {
 		if (length) {
 			assert(buf != NULL);
 			pthreads_stream_temp_write(threaded_stream, buf, length);
@@ -856,11 +907,11 @@ pthreads_stream_t * pthreads_stream_url_wrap_rfc2397(pthreads_stream_wrapper_t *
 		ilen = dlen;
 	}
 
-	if ((threaded_stream = pthreads_stream_temp_create(0, ~0u)) != NULL) {
+	if ((threaded_stream = pthreads_stream_temp_create(0, ~0u, ce)) != NULL) {
 		stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 		/* store data */
-		pthreads_stream_temp_write(threaded_stream, comma, ilen);
-		pthreads_stream_temp_seek(threaded_stream, 0, SEEK_SET, &newoffs);
+		//pthreads_stream_temp_write(threaded_stream, comma, ilen);
+		//pthreads_stream_temp_seek(threaded_stream, 0, SEEK_SET, &newoffs);
 		/* set special stream stuff (enforce exact mode) */
 		vlen = strlen(mode);
 		if (vlen >= sizeof(stream->mode)) {

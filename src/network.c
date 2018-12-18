@@ -26,7 +26,7 @@
 #	include <src/streams/transports.h>
 #endif
 
-pthreads_stream_t *_pthreads_stream_sock_open_from_socket(php_socket_t socket, const char *key) {
+pthreads_stream_t *_pthreads_stream_sock_open_from_socket(php_socket_t socket, zend_class_entry *ce) {
 	pthreads_stream_t *threaded_stream;
 	pthreads_stream *stream;
 	pthreads_netstream_data_t *sock;
@@ -39,7 +39,7 @@ pthreads_stream_t *_pthreads_stream_sock_open_from_socket(php_socket_t socket, c
 	sock->timeout.tv_usec = 0;
 	sock->socket = socket;
 
-	threaded_stream = PTHREADS_STREAM_NEW(&pthreads_stream_generic_socket_ops, sock, "r+", key);
+	threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_generic_socket_ops, sock, "r+", ce);
 
 	if (threaded_stream == NULL) {
 		free(sock);
@@ -52,8 +52,7 @@ pthreads_stream_t *_pthreads_stream_sock_open_from_socket(php_socket_t socket, c
 }
 
 pthreads_stream_t *_pthreads_stream_sock_open_host(const char *host, unsigned short port,
-		int socktype, struct timeval *timeout, const char *persistent_id)
-{
+		int socktype, struct timeval *timeout) {
 	char *res;
 	zend_long reslen;
 	pthreads_stream_t *threaded_stream;
@@ -61,7 +60,7 @@ pthreads_stream_t *_pthreads_stream_sock_open_host(const char *host, unsigned sh
 	reslen = spprintf(&res, 0, "tcp://%s:%d", host, port);
 
 	threaded_stream = pthreads_stream_xport_create(res, reslen, PTHREADS_REPORT_ERRORS,
-			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, persistent_id, timeout, NULL, NULL, NULL);
+			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, timeout, NULL, NULL, NULL);
 
 	efree(res);
 

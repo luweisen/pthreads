@@ -32,7 +32,8 @@ pthreads_object_t* pthreads_object_init(zend_class_entry *ce); /* }}} */
 /* {{{ */
 void pthreads_ptr_dtor(pthreads_object_t* threaded);
 void pthreads_add_ref(pthreads_object_t* threaded);
-void pthreads_del_ref(pthreads_object_t* threaded); /* }}} */
+void pthreads_del_ref(pthreads_object_t* threaded);
+int pthreads_refcount(pthreads_object_t* threaded); /* }}} */
 
 /* {{{ */
 zend_object* pthreads_threaded_ctor(zend_class_entry *entry);

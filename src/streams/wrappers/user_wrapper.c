@@ -347,7 +347,7 @@ static pthreads_stream_t *pthreads_user_wrapper_opener(pthreads_stream_wrapper_t
 
 	if (call_result == SUCCESS && Z_TYPE(zretval) != IS_UNDEF && zval_is_true(&zretval)) {
 		/* the stream is now open! */
-		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_userspace_ops, us, mode, NULL, ce);
+		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_userspace_ops, us, mode, ce);
 
 		/* if the opened path is set, copy it out */
 		if (Z_ISREF(args[3]) && Z_TYPE_P(Z_REFVAL(args[3])) == IS_STRING && opened_path) {
@@ -424,7 +424,7 @@ static pthreads_stream_t *pthreads_user_wrapper_opendir(pthreads_stream_wrapper_
 
 	if (call_result == SUCCESS && Z_TYPE(zretval) != IS_UNDEF && zval_is_true(&zretval)) {
 		/* the stream is now open! */
-		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_userspace_dir_ops, us, mode, NULL, ce);
+		threaded_stream = PTHREADS_STREAM_CLASS_NEW(&pthreads_stream_userspace_dir_ops, us, mode, ce);
 
 		stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 

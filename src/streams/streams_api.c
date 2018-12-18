@@ -887,19 +887,14 @@ void pthreads_streams_api_stream_from_resource(php_stream *stream, zval *return_
 void pthreads_streams_api_socket_stream_create_client(zend_string *host, zval *zerrno, zval *zerrstr, double timeout, zend_long flags, zval *zcontext, zval *return_value) {
 	pthreads_timeout_ull conv;
 	struct timeval tv;
-	char *hashkey = NULL;
 	int err;
 	zend_string *errstr = NULL;
 	pthreads_stream_t *threaded_stream;
 	pthreads_stream_context_t *threaded_context = NULL;
 
-	RETVAL_FALSE;
+	RETVAL_NULL();
 
 	threaded_context = pthreads_stream_context_from_zval(zcontext, flags & PTHREADS_FILE_NO_DEFAULT_CONTEXT);
-
-	if (flags & PTHREADS_STREAM_CLIENT_PERSISTENT) {
-		spprintf(&hashkey, 0, "stream_socket_client__%s", ZSTR_VAL(host));
-	}
 
 	/* prepare the timeout value for use */
 	conv = (pthreads_timeout_ull) (timeout * 1000000.0);
@@ -922,11 +917,7 @@ void pthreads_streams_api_socket_stream_create_client(zend_string *host, zval *z
 	threaded_stream = pthreads_stream_xport_create(ZSTR_VAL(host), ZSTR_LEN(host), PTHREADS_REPORT_ERRORS,
 			PTHREADS_STREAM_XPORT_CLIENT | (flags & PTHREADS_STREAM_CLIENT_CONNECT ? PTHREADS_STREAM_XPORT_CONNECT : 0) |
 			(flags & PTHREADS_STREAM_CLIENT_ASYNC_CONNECT ? PTHREADS_STREAM_XPORT_CONNECT_ASYNC : 0),
-			hashkey, &tv, threaded_context, &errstr, &err);
-
-	if (hashkey) {
-		efree(hashkey);
-	}
+			&tv, threaded_context, &errstr, &err);
 
 	if (threaded_stream == NULL) {
 		/* host might contain binary characters */
@@ -945,7 +936,7 @@ void pthreads_streams_api_socket_stream_create_client(zend_string *host, zval *z
 		} else if (errstr) {
 			zend_string_release(errstr);
 		}
-		RETURN_FALSE;
+		RETURN_NULL();
 	}
 
 	if (errstr) {
@@ -964,7 +955,7 @@ void pthreads_streams_api_socket_stream_create_server(zend_string *host, zval *z
 	pthreads_stream_t *threaded_stream;
 	pthreads_stream_context_t *threaded_context = NULL;
 
-	RETVAL_FALSE;
+	RETVAL_NULL();
 
 	threaded_context = pthreads_stream_context_from_zval(zcontext, flags & PTHREADS_FILE_NO_DEFAULT_CONTEXT);
 
@@ -978,8 +969,7 @@ void pthreads_streams_api_socket_stream_create_server(zend_string *host, zval *z
 	}
 
 	threaded_stream = pthreads_stream_xport_create(ZSTR_VAL(host), ZSTR_LEN(host), PTHREADS_REPORT_ERRORS,
-			PTHREADS_STREAM_XPORT_SERVER | (int)flags,
-			NULL, NULL, threaded_context, &errstr, &err);
+			PTHREADS_STREAM_XPORT_SERVER | (int)flags, NULL, threaded_context, &errstr, &err);
 
 	if (threaded_stream == NULL) {
 		php_error_docref(NULL, E_WARNING, "unable to connect to %s (%s)", host, errstr == NULL ? "Unknown error" : ZSTR_VAL(errstr));
@@ -996,7 +986,7 @@ void pthreads_streams_api_socket_stream_create_server(zend_string *host, zval *z
 		} else if (errstr) {
 			zend_string_release(errstr);
 		}
-		RETURN_FALSE;
+		RETURN_NULL();
 	}
 
 	if (errstr) {
@@ -1023,8 +1013,8 @@ void pthreads_streams_api_socket_stream_pair(zend_long domain, zend_long type, z
 
 	array_init(return_value);
 
-	s1 = pthreads_stream_sock_open_from_socket(pair[0], 0);
-	s2 = pthreads_stream_sock_open_from_socket(pair[1], 0);
+	s1 = _pthreads_stream_sock_open_from_socket(pair[0], pthreads_socket_stream_entry);
+	s2 = _pthreads_stream_sock_open_from_socket(pair[1], pthreads_socket_stream_entry);
 
 	ZVAL_OBJ(&obj1, PTHREADS_STD_P(s1));
 	ZVAL_OBJ(&obj2, PTHREADS_STD_P(s2));
@@ -1088,12 +1078,12 @@ void pthreads_streams_api_socket_stream_get_name(zval *object, zend_bool want_pe
 				&name,
 				NULL, NULL
 				) || !name) {
-		RETURN_FALSE;
+		RETURN_NULL();
 	}
 
 	if ((ZSTR_LEN(name) == 0) || (ZSTR_VAL(name)[0] == 0)) {
 		zend_string_release(name);
-		RETURN_FALSE;
+		RETURN_NULL();
 	}
 
 	RETVAL_STR(name);

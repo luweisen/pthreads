@@ -824,7 +824,7 @@ void pthreads_streams_api_file_popen(char *command, char *mode, int mode_len, zv
 		RETURN_NULL();
 	}
 
-	threaded_stream = _pthreads_stream_fopen_from_pipe(fp, mode, NULL, pthreads_file_stream_entry);
+	threaded_stream = _pthreads_stream_fopen_from_pipe(fp, mode, pthreads_file_stream_entry);
 
 	if (threaded_stream == NULL)	{
 		php_error_docref2(NULL, command, mode, E_WARNING, "%s", strerror(errno));
@@ -926,7 +926,6 @@ void pthreads_streams_api_file_copy(char *source, char *target, zval *zcontext, 
 
 void pthreads_streams_api_file_sockopen(zend_string *host, zend_long port, zval *zerrno, zval *zerrstr, double timeout, int persistent, zval *return_value) {
 	struct timeval tv;
-	char *hashkey = NULL;
 	pthreads_stream_t *threaded_stream = NULL;
 #ifndef PHP_WIN32
 	time_t conv;
@@ -940,9 +939,6 @@ void pthreads_streams_api_file_sockopen(zend_string *host, zend_long port, zval 
 
 	RETVAL_NULL();
 
-	if (persistent) {
-		spprintf(&hashkey, 0, "pfsockopen__%s:" ZEND_LONG_FMT, ZSTR_VAL(host), port);
-	}
 
 	if (port > 0) {
 		hostname_len = spprintf(&hostname, 0, "%s:" ZEND_LONG_FMT, ZSTR_VAL(host), port);
@@ -971,7 +967,7 @@ void pthreads_streams_api_file_sockopen(zend_string *host, zend_long port, zval 
 	}
 
 	threaded_stream = pthreads_stream_xport_create(hostname, hostname_len, PTHREADS_REPORT_ERRORS,
-			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, hashkey, &tv, NULL, &errstr, &err);
+			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, &tv, NULL, &errstr, &err);
 
 	if (port > 0) {
 		efree(hostname);
@@ -980,9 +976,6 @@ void pthreads_streams_api_file_sockopen(zend_string *host, zend_long port, zval 
 		php_error_docref(NULL, E_WARNING, "unable to connect to %s:" ZEND_LONG_FMT " (%s)", ZSTR_VAL(host), port, errstr == NULL ? "Unknown error" : ZSTR_VAL(errstr));
 	}
 
-	if (hashkey) {
-		efree(hashkey);
-	}
 
 	if (threaded_stream == NULL) {
 		if (zerrno) {

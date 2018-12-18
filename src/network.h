@@ -52,12 +52,12 @@ extern const pthreads_stream_ops pthreads_stream_generic_socket_ops;
 #define PTHREADS_STREAM_IS_SOCKET	(&pthreads_stream_socket_ops)
 
 
-pthreads_stream_t *_pthreads_stream_sock_open_from_socket(php_socket_t socket, const char *key);
+pthreads_stream_t *_pthreads_stream_sock_open_from_socket(php_socket_t socket, zend_class_entry *ce);
 /* open a connection to a host using php_hostconnect and return a stream */
 pthreads_stream_t *_pthreads_stream_sock_open_host(const char *host, unsigned short port,
-		int socktype, struct timeval *timeout, const char *persistent_id);
+		int socktype, struct timeval *timeout);
 
-#define pthreads_stream_sock_open_from_socket(socket, key)	_pthreads_stream_sock_open_from_socket((socket), (key))
-#define pthreads_stream_sock_open_host(host, port, socktype, timeout, key)	_pthreads_stream_sock_open_host((host), (port), (socktype), (timeout), (key))
+#define pthreads_stream_sock_open_from_socket(socket)	_pthreads_stream_sock_open_from_socket((socket), NULL)
+#define pthreads_stream_sock_open_host(host, port, socktype, timeout)	_pthreads_stream_sock_open_host((host), (port), (socktype), (timeout))
 
 #endif

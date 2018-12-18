@@ -87,7 +87,7 @@ int pthreads_stream_xport_unregister(const char *protocol)
 	}
 
 pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namelen, int options,
-		int flags, const char *persistent_id,
+		int flags,
 		struct timeval *timeout,
 		pthreads_stream_context_t *threaded_context,
 		zend_string **error_string,
@@ -106,28 +106,6 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 
 	if (timeout == NULL) {
 		timeout = &default_timeout;
-	}
-
-	/* check for a cached persistent socket */
-	if (persistent_id) {
-		switch(pthreads_stream_from_key(persistent_id, &threaded_stream)) {
-			case PTHREADS_STREAM_PERSISTENT_SUCCESS:
-				/* use a 0 second timeout when checking if the socket
-				 * has already died */
-				if (PTHREADS_STREAM_OPTION_RETURN_OK == pthreads_stream_set_option(threaded_stream, PTHREADS_STREAM_OPTION_CHECK_LIVENESS, 0, NULL)) {
-					return threaded_stream;
-				}
-				/* dead - kill it */
-				pthreads_stream_pclose(threaded_stream);
-				threaded_stream = NULL;
-
-				/* fall through */
-
-			case PTHREADS_STREAM_PERSISTENT_FAILURE:
-			default:
-				/* failed; get a new one */
-				;
-		}
 	}
 
 	for (p = name; isalnum((int)*p) || *p == '+' || *p == '-' || *p == '.'; p++) {
@@ -170,7 +148,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 		php_error_docref(NULL, E_WARNING, "Could not find a factory !?");
 		return NULL;
 	}
-	threaded_stream = (factory)(protocol, n, (char*)name, namelen, persistent_id, options, flags, timeout, threaded_context);
+	threaded_stream = (factory)(protocol, n, (char*)name, namelen, options, flags, timeout, threaded_context);
 
 	if (threaded_stream) {
 		pthreads_stream_context_set(threaded_stream, threaded_context);
@@ -199,7 +177,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 					zval *zbacklog = NULL;
 					int backlog = 32;
 					stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
-					threaded_context = PTHREADS_STREAM_GET_CONTEXT(stream);
+					threaded_context = pthreads_stream_get_context(threaded_stream);
 
 					if (threaded_context && (zbacklog = pthreads_stream_context_get_option(threaded_context, "socket", "backlog")) != NULL) {
 						backlog = zval_get_long(zbacklog);
@@ -216,11 +194,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 
 	if (failed) {
 		/* failure means that they don't get a stream to play with */
-		if (persistent_id) {
-			pthreads_stream_pclose(threaded_stream);
-		} else {
-			pthreads_stream_close(threaded_stream, PTHREADS_STREAM_FREE_CLOSE);
-		}
+		pthreads_stream_close(threaded_stream, PTHREADS_STREAM_FREE_CLOSE);
 		threaded_stream = NULL;
 	}
 
@@ -228,7 +202,7 @@ pthreads_stream_t *_pthreads_stream_xport_create(const char *name, size_t namele
 }
 
 /* Bind the stream to a local address */
-int pthreaded_stream_xport_bind(pthreads_stream_t *threaded_stream,
+int pthreads_stream_xport_bind(pthreads_stream_t *threaded_stream,
 		const char *name, size_t namelen,
 		zend_string **error_text
 		)
@@ -248,7 +222,6 @@ int pthreaded_stream_xport_bind(pthreads_stream_t *threaded_stream,
 		if (error_text) {
 			*error_text = param.outputs.error_text;
 		}
-
 		return param.outputs.returncode;
 	}
 

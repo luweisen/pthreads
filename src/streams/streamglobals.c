@@ -67,7 +67,6 @@ int pthreads_stream_globals_is_main_context() {
 /* {{{ */
 void pthreads_stream_globals_init() {
 	PTHREADS_STREAMG(monitor) = pthreads_monitor_alloc();
-	pthreads_hashtable_init(&PTHREADS_STREAMG(streams_list), 8, NULL);
 	pthreads_hashtable_init(&PTHREADS_STREAMG(xport_hash), 8, NULL);
 	pthreads_hashtable_init(&PTHREADS_STREAMG(url_stream_wrappers_hash), 8, pthreads_stream_wrapper_dtor);
 	pthreads_hashtable_init(&PTHREADS_STREAMG(stream_filters_hash), 8, NULL);
@@ -126,7 +125,6 @@ int pthreads_stream_globals_object_shutdown() {
 
 /* {{{ */
 void pthreads_stream_globals_shutdown() {
-	pthreads_free_hashtable(&PTHREADS_STREAMG(streams_list));
 	pthreads_free_hashtable(&PTHREADS_STREAMG(xport_hash));
 	pthreads_free_hashtable(&PTHREADS_STREAMG(url_stream_wrappers_hash));
 	pthreads_free_hashtable(&PTHREADS_STREAMG(stream_filters_hash));

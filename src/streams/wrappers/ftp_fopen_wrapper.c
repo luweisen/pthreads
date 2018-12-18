@@ -111,7 +111,7 @@ static pthreads_stream_t *pthreads_ftp_fopen_connect(pthreads_stream_wrapper_t *
 
 	transport_len = (int)spprintf(&transport, 0, "tcp://%s:%d", ZSTR_VAL(resource->host), resource->port);
 	threaded_stream = pthreads_stream_xport_create(transport, transport_len, PTHREADS_REPORT_ERRORS,
-							PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, NULL, NULL, threaded_context, NULL, NULL);
+							PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, NULL, threaded_context, NULL, NULL);
 	efree(transport);
 	if (threaded_stream == NULL) {
 		result = 0; /* silence */
@@ -504,7 +504,7 @@ pthreads_stream_t * pthreads_stream_url_wrap_ftp(pthreads_stream_wrapper_t *thre
 	}
 	transport_len = (int)spprintf(&transport, 0, "tcp://%s:%d", hoststart, portno);
 	datastream = pthreads_stream_xport_create(transport, transport_len, PTHREADS_REPORT_ERRORS,
-			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, NULL, NULL, threaded_context, &error_message, NULL);
+			PTHREADS_STREAM_XPORT_CLIENT | PTHREADS_STREAM_XPORT_CONNECT, NULL, threaded_context, &error_message, NULL);
 	efree(transport);
 	if (datastream == NULL) {
 		tmp_line[0]='\0';
@@ -685,7 +685,7 @@ pthreads_stream_t * pthreads_stream_ftp_opendir(pthreads_stream_wrapper_t *threa
 		hoststart = ZSTR_VAL(resource->host);
 	}
 
-	datastream = pthreads_stream_sock_open_host(hoststart, portno, SOCK_STREAM, 0, 0);
+	datastream = pthreads_stream_sock_open_host(hoststart, portno, SOCK_STREAM, 0);
 	if (datastream == NULL) {
 		goto opendir_errexit;
 	}
@@ -718,7 +718,7 @@ pthreads_stream_t * pthreads_stream_ftp_opendir(pthreads_stream_wrapper_t *threa
 	dirsdata = emalloc(sizeof *dirsdata);
 	dirsdata->datastream = datastream;
 	dirsdata->controlstream = threaded_stream;
-	dirsdata->dirstream = PTHREADS_STREAM_CLASS_NEW(&pthreads_ftp_dirstream_ops, dirsdata, mode, 0, ce);
+	dirsdata->dirstream = PTHREADS_STREAM_CLASS_NEW(&pthreads_ftp_dirstream_ops, dirsdata, mode, ce);
 
 	return dirsdata->dirstream;
 
