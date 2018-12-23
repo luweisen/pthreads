@@ -19,7 +19,6 @@
 #define HAVE_PTHREADS_STREAMS_INTERNAL_H
 
 #define PTHREADS_STREAM_DEBUG 0
-#define PTHREADS_STREAM_WRAPPER_PLAIN_FILES	((pthreads_stream_wrapper*)-1)
 
 #ifndef MAP_FAILED
 #define MAP_FAILED ((void *) -1)

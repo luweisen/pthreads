@@ -917,6 +917,14 @@ class StreamWrapper extends \Threaded
 
 class StreamFilter extends \Volatile
 {
+	public const PSFS_PASS_ON = 2;
+	public const PSFS_FEED_ME = 1;
+	public const PSFS_ERR_FATAL = 0;
+	
+	public const PSFS_FLAG_NORMAL = 0;
+	public const PSFS_FLAG_FLUSH_INC = 1;
+	public const PSFS_FLAG_FLUSH_CLOSE = 2;
+	
 	public function __construct() {
 		throw new Exception("Instantiation of 'StreamFilter' is not allowed");
 	}
@@ -945,9 +953,9 @@ class StreamBucketBrigade extends \Threaded
 		throw new Exception("Instantiation of 'StreamBucketBrigade' is not allowed");
 	}
 	
-	public function append(StreamBucket $bucket) : void {}
+	public function append(StreamBucket $bucket, bool $separate = false) : void {}
 	
-	public function prepend(StreamBucket $bucket) : void {}
+	public function prepend(StreamBucket $bucket, bool $separate = false) : void {}
 	
 	public function fetch() : ?StreamBucket {}
 	
@@ -959,15 +967,7 @@ class StreamBucketBrigade extends \Threaded
 }
 
 class pthreads_user_filter extends \Volatile
-{
-	public const PTHREADS_SFS_PASS_ON = 2;
-	public const PTHREADS_SFS_FEED_ME = 1;
-	public const PTHREADS_SFS_ERR_FATAL = 0;
-	
-	public const PTHREADS_SFS_FLAG_NORMAL = 0;
-	public const PTHREADS_SFS_FLAG_FLUSH_INC = 1;
-	public const PTHREADS_SFS_FLAG_FLUSH_CLOSE = 2;
-	
+{	
 	/**
 	 * @var string
 	 */
@@ -983,6 +983,12 @@ class pthreads_user_filter extends \Volatile
 	 * @optional
 	 */
 	public $stream;
+	
+	/**
+	 * @var StreamFilter|null
+	 * @optional
+	 */
+	public $filter;
 	
 	public function onClose() {}
 	

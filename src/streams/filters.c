@@ -41,13 +41,13 @@
 
 int pthreads_init_stream_filters() {
 
-	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_PASS_ON")			, PTHREADS_SFS_PASS_ON);
-	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FEED_ME")			, PTHREADS_SFS_FEED_ME);
-	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_ERR_FATAL")			, PTHREADS_SFS_ERR_FATAL);
+	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PSFS_PASS_ON")			, PTHREADS_SFS_PASS_ON);
+	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PSFS_FEED_ME")			, PTHREADS_SFS_FEED_ME);
+	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PSFS_ERR_FATAL")			, PTHREADS_SFS_ERR_FATAL);
 
-	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FLAG_NORMAL")		, PTHREADS_SFS_FLAG_NORMAL);
-	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FLAG_FLUSH_INC")	, PTHREADS_SFS_FLAG_FLUSH_INC);
-	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PTHREADS_SFS_FLAG_FLUSH_CLOSE")	, PTHREADS_SFS_FLAG_FLUSH_CLOSE);
+	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PSFS_FLAG_NORMAL")		, PTHREADS_SFS_FLAG_NORMAL);
+	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PSFS_FLAG_FLUSH_INC")	, PTHREADS_SFS_FLAG_FLUSH_INC);
+	zend_declare_class_constant_long(pthreads_stream_filter_entry,  ZEND_STRL("PSFS_FLAG_FLUSH_CLOSE")	, PTHREADS_SFS_FLAG_FLUSH_CLOSE);
 
 	standard_filters_init();
 
@@ -99,14 +99,13 @@ pthreads_stream_filter_status_t pthreads_userfilter_filter(
 {
 	pthreads_stream_bucket_brigade *buckets_in, *buckets_out;
 	pthreads_stream_filter_t *threaded_user_filter;
+	pthreads_stream_bucket_t *threaded_bucket;
 	int ret = PTHREADS_SFS_ERR_FATAL;
 	zval *obj = &PTHREADS_FETCH_STREAMS_FILTER(threaded_thisfilter)->abstract;
 	zval func_name, retval;
 	zval args[4];
 	zval zpropname;
 	int call_result;
-
-	printf("---------- pthreads_userfilter_filter ---------------- \n");
 
 	/* the userfilter object probably doesn't exist anymore */
 	if (CG(unclean_shutdown)) {
@@ -169,19 +168,15 @@ pthreads_stream_filter_status_t pthreads_userfilter_filter(
 		if (buckets_in->head) {
 			php_error_docref(NULL, E_WARNING, "Unprocessed filter buckets remaining on input brigade");
 
-			pthreads_stream_bucket_t *threaded_bucket = buckets_in->head;
-			while (threaded_bucket != NULL) {
+			while ((threaded_bucket = buckets_in->head) != NULL) {
 				/* Remove unconsumed buckets from the brigade */
 				pthreads_stream_bucket_destroy(threaded_bucket);
-				threaded_bucket = buckets_in->head;
 			}
 		}
 
 		if (ret != PTHREADS_SFS_PASS_ON) {
-			pthreads_stream_bucket_t *threaded_bucket = buckets_out->head;
-			while (threaded_bucket != NULL) {
+			while ((threaded_bucket = buckets_out->head) != NULL) {
 				pthreads_stream_bucket_destroy(threaded_bucket);
-				threaded_bucket = buckets_out->head;
 			}
 		}
 
@@ -197,8 +192,6 @@ pthreads_stream_filter_status_t pthreads_userfilter_filter(
 
 	zval_ptr_dtor(&args[3]);
 	zval_ptr_dtor(&args[2]);
-	//zval_ptr_dtor(&args[1]);
-	//zval_ptr_dtor(&args[0]);
 
 	return ret;
 }
@@ -261,20 +254,18 @@ static pthreads_stream_filter_t *pthreads_user_filter_factory_create(const char 
 	}
 
 	/* bind the classname to the actual class */
-	if (fdat->classname == NULL) {
-		if (NULL == (filter_ce = zend_lookup_class(fdat->classname))) {
-			php_error_docref(NULL, E_WARNING,
-					"user-filter \"%s\" requires class \"%s\", but that class is not defined",
-					filtername, ZSTR_VAL(fdat->classname));
-			return NULL;
-		}
+	if (NULL == (filter_ce = zend_lookup_class(fdat->classname))) {
+		php_error_docref(NULL, E_WARNING,
+				"user-filter \"%s\" requires class \"%s\", but that class is not defined",
+				filtername, ZSTR_VAL(fdat->classname));
+		return NULL;
+	}
 
-		if(!instanceof_function(filter_ce, pthreads_threaded_entry)) {
-			php_error_docref(NULL, E_WARNING,
-								"user-filter \"%s\" must be an instance of Threaded",
-								filtername);
-			return NULL;
-		}
+	if(!instanceof_function(filter_ce, pthreads_threaded_entry)) {
+		php_error_docref(NULL, E_WARNING,
+							"user-filter \"%s\" must be an instance of Threaded",
+							filtername);
+		return NULL;
 	}
 
 	threaded_filter = pthreads_stream_filter_new(&pthreads_userfilter_ops, NULL);
@@ -367,6 +358,36 @@ int pthreads_stream_filter_unregister_factory(const char *filterpattern) {
 	return result;
 }
 
+int pthreads_streams_add_user_filter_map_entry(zend_string *filtername, zend_string *classname) {
+	struct pthreads_user_filter_data *fdat;
+
+	fdat = calloc(1, sizeof(struct pthreads_user_filter_data));
+	fdat->classname = classname;
+
+	pthreads_hashtable *user_filter_map = &PTHREADS_STREAMG(user_filter_map);
+
+	if(MONITOR_LOCK(user_filter_map)) {
+		void *result = zend_hash_add_ptr(&user_filter_map->ht, filtername, fdat);
+
+		MONITOR_UNLOCK(user_filter_map);
+
+		if(result != NULL) {
+			return SUCCESS;
+		}
+	}
+	free(fdat);
+
+	return FAILURE;
+}
+
+void pthreads_streams_drop_user_filter_map_entry(zend_string *filtername) {
+	pthreads_hashtable *user_filter_map = &PTHREADS_STREAMG(user_filter_map);
+
+	if(MONITOR_LOCK(user_filter_map)) {
+		zend_hash_del(&user_filter_map->ht, filtername);
+		MONITOR_UNLOCK(user_filter_map);
+	}
+}
 
 /* We allow very simple pattern matching for filter factories:
  * if "convert.charset.utf-8/sjis" is requested, we search first for an exact
@@ -376,7 +397,7 @@ int pthreads_stream_filter_unregister_factory(const char *filterpattern) {
 pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, zval *filterparams) {
 	pthreads_hashtable *filter_hash = pthreads_get_stream_filters_hash();
 	const pthreads_stream_filter_factory *factory = NULL;
-	pthreads_stream_filter_t *filter = NULL;
+	pthreads_stream_filter_t *threaded_filter = NULL;
 	size_t n;
 	char *period;
 
@@ -388,7 +409,7 @@ pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, 
 	}
 
 	if (NULL != factory) {
-		filter = factory->create_filter(filtername, filterparams);
+		threaded_filter = factory->create_filter(filtername, filterparams);
 	} else if ((period = strrchr(filtername, '.'))) {
 		/* try a wildcard */
 		char *wildname;
@@ -396,7 +417,7 @@ pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, 
 		wildname = safe_emalloc(1, n, 3);
 		memcpy(wildname, filtername, n+1);
 		period = wildname + (period - filtername);
-		while (period && !filter) {
+		while (period && !threaded_filter) {
 			*period = '\0';
 			strncat(wildname, ".*", 2);
 
@@ -406,7 +427,7 @@ pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, 
 			}
 
 			if (NULL != factory) {
-				filter = factory->create_filter(filtername, filterparams);
+				threaded_filter = factory->create_filter(filtername, filterparams);
 			}
 
 			*period = '\0';
@@ -415,7 +436,7 @@ pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, 
 		efree(wildname);
 	}
 
-	if (filter == NULL) {
+	if (threaded_filter == NULL) {
 		/* TODO: these need correct docrefs */
 		if (factory == NULL)
 			php_error_docref(NULL, E_WARNING, "unable to locate filter \"%s\"", filtername);
@@ -423,7 +444,7 @@ pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, 
 			php_error_docref(NULL, E_WARNING, "unable to create or locate filter \"%s\"", filtername);
 	}
 
-	return filter;
+	return threaded_filter;
 }
 
 pthreads_stream_filter *_pthreads_stream_filter_alloc(const pthreads_stream_filter_ops *fops, void *abstract) {
@@ -444,57 +465,74 @@ void pthreads_stream_filter_free(pthreads_stream_filter *filter, pthreads_stream
 	free(filter);
 }
 
-int pthreads_stream_filter_prepend_ex(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter) {
-	pthreads_stream_t *threaded_stream = chain->stream;
+int pthreads_stream_filter_prepend_ex(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter) {
 	pthreads_stream_filter *filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
 
-	if(pthreads_streams_aquire_double_lock(threaded_filter, threaded_stream)) {
-		filter->next = chain->head;
-		filter->prev = NULL;
+	if(pthreads_streams_aquire_double_lock(threaded_filter, threaded_chain)) {
+		//filter->next = chain->head;
+		pthreads_filter_set_next(threaded_filter, pthreads_chain_get_head(threaded_chain));
 
-		if (chain->head) {
-			PTHREADS_FETCH_STREAMS_FILTER(chain->head)->prev = threaded_filter;
+		//filter->prev = NULL;
+		pthreads_filter_set_prev(threaded_filter, NULL);
+
+		if (pthreads_chain_has_head(threaded_chain)) {
+			//PTHREADS_FETCH_STREAMS_FILTER(chain->head)->prev = threaded_filter;
+			pthreads_filter_set_prev(pthreads_chain_get_head(threaded_chain), threaded_filter);
 		} else {
-			chain->tail = threaded_filter;
+			//chain->tail = threaded_filter;
+			pthreads_chain_set_tail(threaded_chain, threaded_filter);
 		}
-		chain->head = threaded_filter;
-		filter->chain = chain;
+		//chain->head = threaded_filter;
+		pthreads_chain_set_head(threaded_chain, threaded_filter);
+		//filter->chain = chain;
+		pthreads_filter_set_chain(threaded_filter, threaded_chain);
 
 		pthreads_add_ref(threaded_filter);
 
-		pthreads_streams_release_double_lock(threaded_filter, threaded_stream);
+		pthreads_streams_release_double_lock(threaded_filter, threaded_chain);
 	}
 	return SUCCESS;
 }
 
-void _pthreads_stream_filter_prepend(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter) {
-	pthreads_stream_filter_prepend_ex(chain, threaded_filter);
+void _pthreads_stream_filter_prepend(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter) {
+	pthreads_stream_filter_prepend_ex(threaded_chain, threaded_filter);
 }
 
-int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter) {
-	pthreads_stream_t *threaded_stream = chain->stream;
+int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter) {
+	pthreads_stream_t *threaded_stream = pthreads_chain_get_stream(threaded_chain);
+
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	pthreads_stream_filter *filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
 
 	// reentrant lock
-	if(pthreads_streams_aquire_double_lock(threaded_filter, threaded_stream)) {
-		filter->prev = chain->tail;
-		filter->next = NULL;
-		if (chain->tail) {
-			PTHREADS_FETCH_STREAMS_FILTER(chain->tail)->next = threaded_filter;
+	if(pthreads_streams_aquire_double_lock(threaded_filter, threaded_chain)) {
+		//filter->prev = chain->tail;
+		pthreads_filter_set_prev(threaded_filter, pthreads_chain_get_tail(threaded_chain));
+
+		//filter->next = NULL;
+		pthreads_filter_set_next(threaded_filter, NULL);
+
+		if (pthreads_chain_has_tail(threaded_chain)) {
+			//PTHREADS_FETCH_STREAMS_FILTER(chain->tail)->next = threaded_filter;
+			pthreads_filter_set_next(pthreads_chain_get_tail(threaded_chain), threaded_filter);
 		} else {
-			chain->head = threaded_filter;
+			//chain->head = threaded_filter;
+			pthreads_chain_set_head(threaded_chain, threaded_filter);
 		}
-		chain->tail = threaded_filter;
-		filter->chain = chain;
+
+		//chain->tail = threaded_filter;
+		pthreads_chain_set_tail(threaded_chain, threaded_filter);
+
+		//filter->chain = chain;
+		pthreads_filter_set_chain(threaded_filter, threaded_chain);
 
 		pthreads_add_ref(threaded_filter);
 
-		pthreads_streams_release_double_lock(threaded_filter, threaded_stream);
+		pthreads_streams_release_double_lock(threaded_filter, threaded_chain);
 	}
 
 	if(stream_lock(threaded_stream)) {
-		if (&(stream->readfilters) == chain && (stream->writepos - stream->readpos) > 0) {
+		if (!pthreads_object_compare(pthreads_stream_get_readfilters(threaded_stream), threaded_chain) && (stream->writepos - stream->readpos) > 0) {
 			/* Let's going ahead and wind anything in the buffer through this filter */
 			pthreads_stream_bucket_brigade_t *brig_inp = pthreads_stream_bucket_brigade_new(), *brig_outp = pthreads_stream_bucket_brigade_new();
 			pthreads_stream_filter_status_t status;
@@ -503,7 +541,7 @@ int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthrea
 			size_t consumed = 0;
 
 			threaded_bucket = pthreads_stream_bucket_new((char*) stream->readbuf + stream->readpos, stream->writepos - stream->readpos);
-			pthreads_stream_bucket_append(brig_inp, threaded_bucket);
+			pthreads_stream_bucket_append(brig_inp, threaded_bucket, 0);
 			status = filter->fops->filter(threaded_stream, threaded_filter, brig_inp, brig_outp, &consumed, PTHREADS_SFS_FLAG_NORMAL);
 
 			if (stream->readpos + consumed > (uint32_t)stream->writepos) {
@@ -543,6 +581,7 @@ int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthrea
 					stream->readpos = 0;
 
 					while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(brig_outp)->head) != NULL) {
+						pthreads_stream_bucket_sync_properties(threaded_bucket);
 						bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 
 						/* Grow buffer to hold this bucket if need be.
@@ -567,22 +606,25 @@ int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthrea
 	return SUCCESS;
 }
 
-void _pthreads_stream_filter_append(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter) {
-	pthreads_stream_t *threaded_stream = chain->stream;
+void _pthreads_stream_filter_append(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter) {
 	pthreads_stream_filter *filter;
 
-	if(pthreads_streams_aquire_double_lock(threaded_filter, threaded_stream)) {
+	if(pthreads_streams_aquire_double_lock(threaded_filter, threaded_chain)) {
 		filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
-		if (pthreads_stream_filter_append_ex(chain, threaded_filter) != SUCCESS) {
-			if (chain->head == threaded_filter) {
-				chain->head = NULL;
-				chain->tail = NULL;
+		if (pthreads_stream_filter_append_ex(threaded_chain, threaded_filter) != SUCCESS) {
+			if (!pthreads_object_compare(pthreads_chain_get_head(threaded_chain), threaded_filter)) {
+				//chain->head = NULL;
+				pthreads_chain_set_head(threaded_chain, NULL);
+				//chain->tail = NULL;
+				pthreads_chain_set_tail(threaded_chain, NULL);
 			} else {
-				PTHREADS_FETCH_STREAMS_FILTER(filter->prev)->next = NULL;
-				chain->tail = filter->prev;
+				//PTHREADS_FETCH_STREAMS_FILTER(filter->prev)->next = NULL;
+				pthreads_filter_set_next(pthreads_filter_get_prev(threaded_filter), NULL);
+				//chain->tail = filter->prev;
+				pthreads_chain_set_tail(threaded_chain, pthreads_filter_get_prev(threaded_filter));
 			}
 		}
-		pthreads_streams_release_double_lock(threaded_filter, threaded_stream);
+		pthreads_streams_release_double_lock(threaded_filter, threaded_chain);
 	}
 }
 
@@ -590,7 +632,7 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 	pthreads_stream_bucket_brigade_t *inp = pthreads_stream_bucket_brigade_new(), *outp = pthreads_stream_bucket_brigade_new(), *brig_temp;
 	pthreads_stream_bucket_t *threaded_bucket;
 	pthreads_stream_bucket *bucket;
-	pthreads_stream_filter_chain *chain;
+	pthreads_stream_filter_chain_t *threaded_chain;
 	pthreads_stream_t *threaded_stream;
 	pthreads_stream *stream;
 	pthreads_stream_filter_t *current;
@@ -598,13 +640,13 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 	size_t flushed_size = 0;
 	long flags = (finish ? PTHREADS_SFS_FLAG_FLUSH_CLOSE : PTHREADS_SFS_FLAG_FLUSH_INC);
 
-	chain = filter->chain;
+	threaded_chain = pthreads_filter_get_chain(threaded_filter);
 
-	if (!chain) {
+	if (!threaded_chain) {
 		/* Filter is not attached to a chain */
 		return FAILURE;
 	}
-	threaded_stream = chain->stream;
+	threaded_stream = pthreads_chain_get_stream(threaded_chain);
 
 	if (!threaded_stream) {
 		/* Chain is somehow not part of a stream */
@@ -613,7 +655,7 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 	if(stream_lock(threaded_stream)) {
 		stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 
-		for(current = threaded_filter; current; current = PTHREADS_FETCH_STREAMS_FILTER(current)->next) {
+		for(current = threaded_filter; current; current = pthreads_filter_get_next(current)) {
 			pthreads_stream_filter_status_t status;
 
 			status = filter->fops->filter(threaded_stream, current, inp, outp, NULL, flags);
@@ -641,6 +683,7 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 			Do something with it */
 
 		for(threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(inp)->head; threaded_bucket; threaded_bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket)->next) {
+			pthreads_stream_bucket_sync_properties(threaded_bucket);
 			flushed_size += PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket)->buflen;
 		}
 
@@ -650,7 +693,7 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 			return SUCCESS;
 		}
 
-		if (chain == &(stream->readfilters)) {
+		if (!pthreads_object_compare(threaded_chain, pthreads_stream_get_readfilters(threaded_stream))) {
 			/* Dump any newly flushed data to the read buffer */
 			if (stream->readpos > 0) {
 				/* Back the buffer up */
@@ -670,7 +713,7 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 				stream->writepos += bucket->buflen;
 				pthreads_stream_bucket_destroy(threaded_bucket);
 			}
-		} else if (chain == &(stream->writefilters)) {
+		} else if (!pthreads_object_compare(threaded_chain, pthreads_stream_get_writefilters(threaded_stream))) {
 			/* Send flushed data to the stream */
 			while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(inp)->head)) {
 				bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
@@ -687,26 +730,36 @@ int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int
 	return SUCCESS;
 }
 
+int _pthreads_stream_filter_is_integrated(pthreads_stream_filter_t *threaded_filter) {
+	return pthreads_filter_has_chain(threaded_filter);
+}
+
 pthreads_stream_filter_t *_pthreads_stream_filter_remove(pthreads_stream_filter_t *threaded_filter, int call_dtor) {
 	pthreads_stream_filter *filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
 	pthreads_stream_filter_t *next, *prev;
 
-	if(pthreads_monitor_lock(threaded_filter->monitor)) {
-		prev = filter->prev;
-		next = filter->next;
+	if(MONITOR_LOCK(threaded_filter)) {
+		prev = pthreads_filter_get_prev(threaded_filter);
+		next = pthreads_filter_get_next(threaded_filter);
 
 		if (prev) {
-			PTHREADS_FETCH_STREAMS_FILTER(prev)->next = next;
+			//PTHREADS_FETCH_STREAMS_FILTER(prev)->next = next;
+			pthreads_filter_set_next(prev, next);
 		} else {
-			filter->chain->head = next;
+			//filter->chain->head = next;
+			pthreads_chain_set_head(pthreads_filter_get_chain(threaded_filter), next);
 		}
 
 		if (next) {
-			PTHREADS_FETCH_STREAMS_FILTER(next)->prev = prev;
+			//PTHREADS_FETCH_STREAMS_FILTER(next)->prev = prev;
+			pthreads_filter_set_prev(next, prev);
 		} else {
-			filter->chain->tail = prev;
+			//filter->chain->tail = prev;
+			pthreads_chain_set_tail(pthreads_filter_get_chain(threaded_filter), prev);
 		}
-		pthreads_monitor_unlock(threaded_filter->monitor);
+		//pthreads_filter_set_chain(threaded_filter, NULL);
+
+		MONITOR_UNLOCK(threaded_filter);
 	}
 
 	if (call_dtor) {

@@ -73,34 +73,24 @@ typedef struct _pthreads_stream_filter_ops {
 
 } pthreads_stream_filter_ops;
 
-typedef struct _pthreads_stream_filter_chain {
-	pthreads_stream_filter_t *head, *tail;
-
-	/* Owning stream */
-	pthreads_stream_t *stream;
-} pthreads_stream_filter_chain;
-
 struct _pthreads_stream_filter {
 	const pthreads_stream_filter_ops *fops;
 	zval abstract; /* for use by filter implementation */
-	pthreads_stream_filter_t *next;
-	pthreads_stream_filter_t *prev;
-
-	/* link into stream and chain */
-	pthreads_stream_filter_chain *chain;
 };
 
 int pthreads_init_stream_filters();
 int pthreads_shutdown_stream_filters();
 
 /* stack filter onto a stream */
-void _pthreads_stream_filter_prepend(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);
-int pthreads_stream_filter_prepend_ex(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);
-void _pthreads_stream_filter_append(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);
-int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain *chain, pthreads_stream_filter_t *threaded_filter);
+void _pthreads_stream_filter_prepend(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter);
+int pthreads_stream_filter_prepend_ex(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter);
+void _pthreads_stream_filter_append(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter);
+int pthreads_stream_filter_append_ex(pthreads_stream_filter_chain_t *threaded_chain, pthreads_stream_filter_t *threaded_filter);
 int _pthreads_stream_filter_flush(pthreads_stream_filter_t *threaded_filter, int finish);
 pthreads_stream_filter_t *_pthreads_stream_filter_remove(pthreads_stream_filter_t *threaded_filter, int call_dtor);
 #define pthreads_stream_filter_remove(threaded_filter) _pthreads_stream_filter_remove((threaded_filter), 1)
+int _pthreads_stream_filter_is_integrated(pthreads_stream_filter_t *threaded_filter);
+#define pthreads_stream_filter_is_integrated(threaded_filter) _pthreads_stream_filter_is_integrated((threaded_filter))
 
 void pthreads_stream_filter_free(pthreads_stream_filter *filter, pthreads_stream_filter_t *threaded_filter);
 pthreads_stream_filter *_pthreads_stream_filter_alloc(const pthreads_stream_filter_ops *fops, void *abstract);
@@ -110,7 +100,8 @@ pthreads_stream_filter *_pthreads_stream_filter_alloc(const pthreads_stream_filt
 #define pthreads_stream_filter_append(chain, filter) _pthreads_stream_filter_append((chain), (filter))
 #define pthreads_stream_filter_flush(filter, finish) _pthreads_stream_filter_flush((filter), (finish))
 
-#define pthreads_stream_is_filtered(stream)	((stream)->readfilters.head || (stream)->writefilters.head)
+#define pthreads_stream_is_filtered(threaded_stream)	(pthreads_chain_has_head(pthreads_stream_get_readfilters((threaded_stream))) \
+		|| pthreads_chain_has_tail(pthreads_stream_get_writefilters((threaded_stream))))
 
 typedef struct _pthreads_stream_filter_factory {
 	pthreads_stream_filter_t *(*create_filter)(const char *filtername, zval *filterparams);
@@ -120,6 +111,8 @@ extern const pthreads_stream_filter_factory pthreads_user_filter_factory;
 
 int pthreads_stream_filter_register_factory(const char *filterpattern, const pthreads_stream_filter_factory *factory);
 int pthreads_stream_filter_unregister_factory(const char *filterpattern);
+int pthreads_streams_add_user_filter_map_entry(zend_string *filtername, zend_string *classname);
+void pthreads_streams_drop_user_filter_map_entry(zend_string *filtername);
 pthreads_stream_filter_t *pthreads_stream_filter_create(const char *filtername, zval *filterparams);
 
 pthreads_hashtable *_pthreads_get_stream_filters_hash(void);

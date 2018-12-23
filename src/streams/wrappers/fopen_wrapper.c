@@ -83,7 +83,8 @@ const pthreads_stream_ops pthreads_stream_output_ops = {
 };
 
 /* {{{ */
-static void pthreads_stream_apply_filter_list(pthreads_stream *stream, char *filterlist, int read_chain, int write_chain) {
+static void pthreads_stream_apply_filter_list(pthreads_stream_t *threaded_stream, char *filterlist, int read_chain, int write_chain) {
+	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	char *p, *token = NULL;
 	pthreads_stream_filter_t *temp_filter;
 
@@ -92,14 +93,14 @@ static void pthreads_stream_apply_filter_list(pthreads_stream *stream, char *fil
 		php_url_decode(p, strlen(p));
 		if (read_chain) {
 			if ((temp_filter = pthreads_stream_filter_create(p, NULL))) {
-				pthreads_stream_filter_append(&stream->readfilters, temp_filter);
+				pthreads_stream_filter_append(pthreads_stream_get_readfilters(threaded_stream), temp_filter);
 			} else {
 				php_error_docref(NULL, E_WARNING, "Unable to create filter (%s)", p);
 			}
 		}
 		if (write_chain) {
 			if ((temp_filter = pthreads_stream_filter_create(p, NULL))) {
-				pthreads_stream_filter_append(&stream->writefilters, temp_filter);
+				pthreads_stream_filter_append(pthreads_stream_get_writefilters(threaded_stream), temp_filter);
 			} else {
 				php_error_docref(NULL, E_WARNING, "Unable to create filter (%s)", p);
 			}
@@ -272,18 +273,17 @@ pthreads_stream_t * pthreads_stream_url_wrap_php(pthreads_stream_wrapper_t *thre
 			efree(pathdup);
 			return NULL;
 		}
-		stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 
 		*p = '\0';
 
 		p = php_strtok_r(pathdup + 1, "/", &token);
 		while (p) {
 			if (!strncasecmp(p, "read=", 5)) {
-				pthreads_stream_apply_filter_list(stream, p + 5, 1, 0);
+				pthreads_stream_apply_filter_list(threaded_stream, p + 5, 1, 0);
 			} else if (!strncasecmp(p, "write=", 6)) {
-				pthreads_stream_apply_filter_list(stream, p + 6, 0, 1);
+				pthreads_stream_apply_filter_list(threaded_stream, p + 6, 0, 1);
 			} else {
-				pthreads_stream_apply_filter_list(stream, p, mode_rw & PTHREADS_STREAM_FILTER_READ, mode_rw & PTHREADS_STREAM_FILTER_WRITE);
+				pthreads_stream_apply_filter_list(threaded_stream, p, mode_rw & PTHREADS_STREAM_FILTER_READ, mode_rw & PTHREADS_STREAM_FILTER_WRITE);
 			}
 			p = php_strtok_r(NULL, "/", &token);
 		}

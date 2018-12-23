@@ -354,7 +354,7 @@ PHP_MINIT_FUNCTION(pthreads)
 	pthreads_stream_context_entry->create_object = pthreads_stream_context_ctor;
 
 	INIT_CLASS_ENTRY(ce, "StreamWrapper", pthreads_streams_wrapper_methods);
-	pthreads_stream_wrapper_entry = zend_register_internal_class_ex(&ce, pthreads_threaded_entry);
+	pthreads_stream_wrapper_entry = zend_register_internal_class_ex(&ce, pthreads_volatile_entry);
 	pthreads_stream_wrapper_entry->create_object = pthreads_stream_wrapper_ctor;
 
 	INIT_CLASS_ENTRY(ce, "VolatileMap", NULL);
@@ -362,7 +362,7 @@ PHP_MINIT_FUNCTION(pthreads)
 
 	/* init the filter class ancestor */
 	INIT_CLASS_ENTRY(ce, "pthreads_user_filter", pthreads_streams_user_filter_class_methods);
-	if ((pthreads_user_filter_class_entry = zend_register_internal_class_ex(&ce, pthreads_threaded_entry)) == NULL) {
+	if ((pthreads_user_filter_class_entry = zend_register_internal_class_ex(&ce, pthreads_volatile_entry)) == NULL) {
 		return FAILURE;
 	}
 	zend_declare_property_string(pthreads_user_filter_class_entry, "filtername", sizeof("filtername")-1, "", ZEND_ACC_PUBLIC);

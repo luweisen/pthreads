@@ -405,7 +405,7 @@ int pthreads_stream_xport_recvfrom(pthreads_stream_t *threaded_stream, char *buf
 		return pthreads_stream_read(threaded_stream, buf, buflen);
 	}
 
-	if (threaded_stream->readfilters.head) {
+	if (pthreads_chain_has_head(pthreads_stream_get_readfilters(threaded_stream))) {
 		php_error_docref(NULL, E_WARNING, "cannot peek or fetch OOB data from a filtered stream");
 		return -1;
 	}
@@ -476,7 +476,7 @@ int pthreads_stream_xport_sendto(pthreads_stream_t *threaded_stream, const char 
 	if(stream_lock(threaded_stream)) {
 		oob = (flags & PTHREADS_STREAM_OOB) == PTHREADS_STREAM_OOB;
 
-		if ((oob || addr) && stream->writefilters.head) {
+		if ((oob || addr) && pthreads_chain_has_head(pthreads_stream_get_writefilters(threaded_stream))) {
 			stream_unlock(threaded_stream);
 			php_error_docref(NULL, E_WARNING, "cannot write OOB data, or data to a targeted address on a filtered stream");
 			return -1;

@@ -218,7 +218,6 @@ void pthreads_streams_api_stream_apply_filter_to_stream(int append, zval *object
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	pthreads_stream_filter_t *threaded_filter = NULL;
 	int ret;
-
 	if ((read_write & PTHREADS_STREAM_FILTER_ALL) == 0) {
 		/* Chain not specified.
 		 * Examine stream->mode to determine which filters are needed
@@ -240,9 +239,9 @@ void pthreads_streams_api_stream_apply_filter_to_stream(int append, zval *object
 		}
 
 		if (append) {
-			ret = pthreads_stream_filter_append_ex(&stream->readfilters, threaded_filter);
+			ret = pthreads_stream_filter_append_ex(pthreads_stream_get_readfilters(threaded_stream), threaded_filter);
 		} else {
-			ret = pthreads_stream_filter_prepend_ex(&stream->readfilters, threaded_filter);
+			ret = pthreads_stream_filter_prepend_ex(pthreads_stream_get_readfilters(threaded_stream), threaded_filter);
 		}
 		if (ret != SUCCESS) {
 			pthreads_stream_filter_remove(threaded_filter);
@@ -257,9 +256,9 @@ void pthreads_streams_api_stream_apply_filter_to_stream(int append, zval *object
 		}
 
 		if (append) {
-			ret = pthreads_stream_filter_append_ex(&stream->writefilters, threaded_filter);
+			ret = pthreads_stream_filter_append_ex(pthreads_stream_get_writefilters(threaded_stream), threaded_filter);
 		} else {
-			ret = pthreads_stream_filter_prepend_ex(&stream->writefilters, threaded_filter);
+			ret = pthreads_stream_filter_prepend_ex(pthreads_stream_get_writefilters(threaded_stream), threaded_filter);
 		}
 		if (ret != SUCCESS) {
 			pthreads_stream_filter_remove(threaded_filter);
@@ -397,20 +396,22 @@ void pthreads_streams_api_stream_get_meta_data(zval *object, zval *return_value)
 
 		add_assoc_string(return_value, "mode", stream->mode);
 
-#if 0	/* TODO: needs updating for new filter API */
-		if (stream->filterhead) {
+		if (pthreads_stream_is_filtered(threaded_stream)) {
 			pthreads_stream_filter_t *threaded_filter;
 
-			MAKE_STD_ZVAL(newval);
-			array_init(newval);
+			zval newval;
+			array_init(&newval);
 
-			for (threaded_filter = stream->filterhead; threaded_filter != NULL; threaded_filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter)->next) {
-				add_next_index_string(newval, (char *)PTHREADS_FETCH_STREAMS_FILTER(threaded_filter)->fops->label);
+			for (threaded_filter = pthreads_chain_get_head(pthreads_stream_get_readfilters(threaded_stream)); threaded_filter; threaded_filter = pthreads_filter_get_next(threaded_filter)) {
+				add_next_index_string(&newval, (char *)PTHREADS_FETCH_STREAMS_FILTER(threaded_filter)->fops->label);
 			}
 
-			add_assoc_zval(return_value, "filters", newval);
+			for (threaded_filter = pthreads_chain_get_head(pthreads_stream_get_writefilters(threaded_stream)); threaded_filter; threaded_filter = pthreads_filter_get_next(threaded_filter)) {
+				add_next_index_string(&newval, (char *)PTHREADS_FETCH_STREAMS_FILTER(threaded_filter)->fops->label);
+			}
+
+			add_assoc_zval(return_value, "filters", &newval);
 		}
-#endif
 
 		add_assoc_long(return_value, "unread_bytes", stream->writepos - stream->readpos);
 

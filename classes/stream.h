@@ -963,7 +963,7 @@ PHP_METHOD(SocketStream, shutdown) {
 	if (how != PTHREADS_STREAM_SHUT_RD &&
 	    how != PTHREADS_STREAM_SHUT_WR &&
 	    how != PTHREADS_STREAM_SHUT_RDWR) {
-		php_error_docref(NULL, E_WARNING, "Second parameter $how needs to be one of PTHREADS_STREAM_SHUT_RD, PTHREADS_STREAM_SHUT_WR or PTHREADS_STREAM_SHUT_RDWR");
+		php_error_docref(NULL, E_WARNING, "Second parameter $how needs to be one of Streams::STREAM_SHUT_RD, Streams::STREAM_SHUT_WR or Streams::STREAM_SHUT_RDWR");
 		RETURN_FALSE;
 	}
 

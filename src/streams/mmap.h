@@ -63,7 +63,7 @@ typedef struct {
 #define pthreads_stream_mmap_supported(threaded_stream)	(_pthreads_stream_set_option((threaded_stream), PTHREADS_STREAM_OPTION_MMAP_API, PTHREADS_STREAM_MMAP_SUPPORTED, NULL) == 0 ? 1 : 0)
 
 /* Returns 1 if the stream in its current state can be memory mapped, 0 otherwise */
-#define pthreads_stream_mmap_possible(stream, threaded_stream)	(!pthreads_stream_is_filtered((stream)) && pthreads_stream_mmap_supported(threaded_stream))
+#define pthreads_stream_mmap_possible(threaded_stream)	(!pthreads_stream_is_filtered((threaded_stream)) && pthreads_stream_mmap_supported(threaded_stream))
 
 char *_pthreads_stream_mmap_range(pthreads_stream_t *threaded_stream, size_t offset, size_t length, pthreads_stream_mmap_access_t mode, size_t *mapped_len);
 #define pthreads_stream_mmap_range(threaded_stream, offset, length, mode, mapped_len)	_pthreads_stream_mmap_range((threaded_stream), (offset), (length), (mode), (mapped_len))

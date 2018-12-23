@@ -264,8 +264,18 @@ pthreads_stream_t *_pthreads_stream_new(const pthreads_stream_ops *ops, void *ab
 	threaded_stream = pthreads_object_init(stream_ce);
 	stream = pthreads_stream_alloc(ops, abstract, mode);
 
-	stream->readfilters.stream = threaded_stream;
-	stream->writefilters.stream = threaded_stream;
+	pthreads_stream_set_readfilters(threaded_stream, pthreads_object_init(pthreads_volatile_map_entry));
+	pthreads_stream_set_writefilters(threaded_stream, pthreads_object_init(pthreads_volatile_map_entry));
+
+	pthreads_chain_set_stream(pthreads_stream_get_readfilters(threaded_stream), threaded_stream);
+
+	/* Unwanted addref by pthreads_chain_set_stream */
+	pthreads_ptr_dtor(threaded_stream);
+
+	pthreads_chain_set_stream(pthreads_stream_get_writefilters(threaded_stream), threaded_stream);
+
+	/* Unwanted addref by pthreads_chain_set_stream */
+	pthreads_ptr_dtor(threaded_stream);
 
 	PTHREADS_FETCH_STREAMS_STREAM(threaded_stream) = stream;
 
@@ -313,28 +323,45 @@ int pthreads_stream_has_threaded_property(pthreads_object_t *threaded, int prope
 	return pthreads_stream_read_threaded_property(threaded, property) == NULL ? 0 : 1;
 }
 
+int pthreads_stream_count_threaded_properties(pthreads_object_t *threaded) {
+	zval obj;
+	zend_long count;
+	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
+
+	pthreads_store_count(&obj, &count);
+
+	return count;
+}
+
 pthreads_object_t *pthreads_stream_read_threaded_property(pthreads_object_t *threaded, int property) {
+	pthreads_object_t * result = NULL;
 	zval key, read, obj;
+
+	ZVAL_NULL(&read);
 	ZVAL_LONG(&key, property);
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 
-	if(pthreads_store_read(&obj, &key, 0, &read) == SUCCESS && !ZVAL_IS_NULL(&read)) {
-		return PTHREADS_FETCH_FROM(Z_OBJ(read));
+	if(_pthreads_store_read(&obj, &key, 0, &read, !(EG(flags) & EG_FLAGS_IN_SHUTDOWN)) == SUCCESS && !ZVAL_IS_NULL(&read)) {
+		result = PTHREADS_FETCH_FROM(Z_OBJ(read));
+
+		if(IS_PTHREADS_OBJECT(&read)) {
+			zval_ptr_dtor(&read);
+		}
 	}
-	return NULL;
+	return result;
 }
 
 int pthreads_stream_write_threaded_property(pthreads_object_t *threaded, int property, pthreads_object_t *val) {
 	zval key, write, obj;
 
-	if(val == NULL)
-		return FAILURE;
-
+	if(val == NULL) {
+		return pthreads_stream_delete_threaded_property(threaded, property);
+	}
 	ZVAL_LONG(&key, property);
 	ZVAL_OBJ(&write, PTHREADS_STD_P(val));
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 
-	return pthreads_store_write(&obj, &key, &write);
+	return _pthreads_store_write(&obj, &key, &write, !(EG(flags) & EG_FLAGS_IN_SHUTDOWN));
 }
 
 int pthreads_stream_delete_threaded_property(pthreads_object_t *threaded, int property) {
@@ -342,7 +369,7 @@ int pthreads_stream_delete_threaded_property(pthreads_object_t *threaded, int pr
 	ZVAL_LONG(&key, property);
 	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded));
 
-	return pthreads_store_delete(&obj, &key);
+	return _pthreads_store_delete(&obj, &key, !(EG(flags) & EG_FLAGS_IN_SHUTDOWN));
 }
 
 /* {{{ context API */
@@ -758,6 +785,7 @@ fprintf(stderr, "stream_close: %s:%p[%s] preserve_handle=%d\n",
 void _pthreads_stream_free(pthreads_stream_t *threaded_stream) {
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	pthreads_stream_context_t *threaded_context;
+	pthreads_stream_filter_t *threaded_filter;
 	pthreads_stream_wrapper *wrapper = NULL;
 
 	if(stream && MONITOR_LOCK(threaded_stream)) {
@@ -771,16 +799,18 @@ fprintf(stderr, "stream_free: %s:%p[%s] preserve_handle=%d\n",
 
 		threaded_context = pthreads_stream_get_context(threaded_stream);
 
-		while (stream->readfilters.head) {
-			pthreads_stream_filter_remove(stream->readfilters.head);
+		pthreads_chain_set_stream(pthreads_stream_get_readfilters(threaded_stream), NULL);
+		pthreads_chain_set_stream(pthreads_stream_get_writefilters(threaded_stream), NULL);
+
+		while ((threaded_filter = pthreads_chain_get_head(pthreads_stream_get_readfilters(threaded_stream))) != NULL) {
+			pthreads_stream_filter_remove(threaded_filter);
 		}
 
-		while (stream->writefilters.head) {
-			pthreads_stream_filter_remove(stream->writefilters.head);
+		while ((threaded_filter = pthreads_chain_get_head(pthreads_stream_get_writefilters(threaded_stream))) != NULL) {
+			pthreads_stream_filter_remove(threaded_filter);
 		}
-
-		stream->readfilters.stream = NULL;
-		stream->writefilters.stream = NULL;
+		pthreads_ptr_dtor(pthreads_stream_get_readfilters(threaded_stream));
+		pthreads_ptr_dtor(pthreads_stream_get_writefilters(threaded_stream));
 
 		if(stream->wrapper) {
 			wrapper = PTHREADS_FETCH_STREAMS_WRAPPER(stream->wrapper);
@@ -826,7 +856,7 @@ void _pthreads_stream_fill_read_buffer(pthreads_stream_t *threaded_stream, size_
 	/* allocate/fill the buffer */
 
 	if(stream_lock(threaded_stream)) {
-		if (stream->readfilters.head) {
+		if (pthreads_chain_has_head(pthreads_stream_get_readfilters(threaded_stream))) {
 			char *chunk_buf;
 			int err_flag = 0;
 			pthreads_stream_bucket_brigade_t *brig_inp = pthreads_stream_bucket_brigade_new(),
@@ -853,7 +883,7 @@ void _pthreads_stream_fill_read_buffer(pthreads_stream_t *threaded_stream, size_
 					threaded_bucket = pthreads_stream_bucket_new(chunk_buf, justread);
 
 					/* after this call, bucket is owned by the brigade */
-					pthreads_stream_bucket_append(brig_inp, threaded_bucket);
+					pthreads_stream_bucket_append(brig_inp, threaded_bucket, 0);
 
 					flags = PTHREADS_SFS_FLAG_NORMAL;
 				} else {
@@ -861,7 +891,7 @@ void _pthreads_stream_fill_read_buffer(pthreads_stream_t *threaded_stream, size_
 				}
 
 				/* wind the handle... */
-				for (threaded_filter = stream->readfilters.head; threaded_filter; threaded_filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter)->next) {
+				for (threaded_filter = pthreads_chain_get_head(pthreads_stream_get_readfilters(threaded_stream)); threaded_filter; threaded_filter = pthreads_filter_get_next(threaded_filter)) {
 					status = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter)->fops->filter(threaded_stream, threaded_filter, brig_inp, brig_outp, NULL, flags);
 
 					if (status != PTHREADS_SFS_PASS_ON) {
@@ -883,6 +913,7 @@ void _pthreads_stream_fill_read_buffer(pthreads_stream_t *threaded_stream, size_
 						 * in this situation, we are passing the brig_in brigade into the
 						 * stream read buffer */
 						while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(brig_inp)->head) != NULL) {
+							pthreads_stream_bucket_sync_properties(threaded_bucket);
 							bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 							/* grow buffer to hold this bucket
 							 * TODO: this can fail for persistent streams */
@@ -988,7 +1019,7 @@ size_t _pthreads_stream_read(pthreads_stream_t *threaded_stream, char *buf, size
 				break;
 			}
 
-			if (!stream->readfilters.head && (stream->flags & PTHREADS_STREAM_FLAG_NO_BUFFER || stream->chunk_size == 1)) {
+			if (!pthreads_chain_has_head(pthreads_stream_get_readfilters(threaded_stream)) && (stream->flags & PTHREADS_STREAM_FLAG_NO_BUFFER || stream->chunk_size == 1)) {
 				toread = stream->ops->read(threaded_stream, buf, size);
 				if (toread == (size_t) -1) {
 					/* e.g. underlying read(2) returned -1 */
@@ -1452,7 +1483,6 @@ static size_t _pthreads_stream_write_buffer(pthreads_stream_t *threaded_stream, 
  * Returns the number of bytes consumed from buf by the first filter in the chain.
  * */
 static size_t _pthreads_stream_write_filtered(pthreads_stream_t *threaded_stream, const char *buf, size_t count, int flags) {
-
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 	size_t consumed = 0;
 	pthreads_stream_bucket *bucket;
@@ -1465,17 +1495,18 @@ static size_t _pthreads_stream_write_filtered(pthreads_stream_t *threaded_stream
 
 	if (buf) {
 		threaded_bucket = pthreads_stream_bucket_new((char *)buf, count);
-		pthreads_stream_bucket_append(brig_inp, threaded_bucket);
+		pthreads_stream_bucket_append(brig_inp, threaded_bucket, 0);
 	}
 
 	if(stream_lock(threaded_stream)) {
-		for (threaded_filter = stream->writefilters.head; threaded_filter; threaded_filter = filter->next) {
+		for (threaded_filter = pthreads_chain_get_head(pthreads_stream_get_writefilters(threaded_stream)); threaded_filter; threaded_filter = pthreads_filter_get_next(threaded_filter)) {
 			filter = PTHREADS_FETCH_STREAMS_FILTER(threaded_filter);
 			/* for our return value, we are interested in the number of bytes consumed from
 			 * the first filter in the chain */
 
 			status = filter->fops->filter(threaded_stream, threaded_filter, brig_inp, brig_outp,
-					threaded_filter == stream->writefilters.head ? &consumed : NULL, flags);
+					!pthreads_object_compare(threaded_filter, pthreads_chain_get_head(pthreads_stream_get_writefilters(threaded_stream))) ? &consumed : NULL, flags);
+
 
 			if (status != PTHREADS_SFS_PASS_ON) {
 				break;
@@ -1494,23 +1525,25 @@ static size_t _pthreads_stream_write_filtered(pthreads_stream_t *threaded_stream
 				/* filter chain generated some output; push it through to the
 				 * underlying stream */
 				while ((threaded_bucket = PTHREADS_FETCH_STREAMS_BRIGADE(brig_inp)->head) != NULL) {
+					pthreads_stream_bucket_sync_properties(threaded_bucket);
 					bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 					_pthreads_stream_write_buffer(threaded_stream, bucket->buf, bucket->buflen);
 					/* Potential error situation - eg: no space on device. Perhaps we should keep this brigade
 					 * hanging around and try to write it later.
 					 * At the moment, we just drop it on the floor
 					 * */
-
 					pthreads_stream_bucket_destroy(threaded_bucket);
 				}
 				break;
 			case PTHREADS_SFS_FEED_ME:
 				/* need more data before we can push data through to the stream */
+				pthreads_stream_bucket_destroy(threaded_bucket);
 				break;
 
 			case PTHREADS_SFS_ERR_FATAL:
 				/* some fatal error.  Theoretically, the stream is borked, so all
 				 * further writes should fail. */
+				pthreads_stream_bucket_destroy(threaded_bucket);
 				break;
 		}
 		stream_unlock(threaded_stream);
@@ -1526,7 +1559,7 @@ int _pthreads_stream_flush(pthreads_stream_t *threaded_stream, int closing) {
 	int ret = 0;
 
 	if(stream_lock(threaded_stream)) {
-		if (stream->writefilters.head) {
+		if (pthreads_chain_has_head(pthreads_stream_get_writefilters(threaded_stream))) {
 			_pthreads_stream_write_filtered(threaded_stream, NULL, 0, closing ? PTHREADS_SFS_FLAG_FLUSH_CLOSE : PTHREADS_SFS_FLAG_FLUSH_INC );
 		}
 
@@ -1549,7 +1582,7 @@ size_t _pthreads_stream_write(pthreads_stream_t *threaded_stream, const char *bu
 	}
 
 	if(stream_lock(threaded_stream)) {
-		if (stream->writefilters.head) {
+		if (pthreads_chain_has_head(pthreads_stream_get_writefilters(threaded_stream))) {
 			bytes = _pthreads_stream_write_filtered(threaded_stream, buf, count, PTHREADS_SFS_FLAG_NORMAL);
 		} else {
 			bytes = _pthreads_stream_write_buffer(threaded_stream, buf, count);
@@ -1632,7 +1665,7 @@ int _pthreads_stream_seek(pthreads_stream_t *threaded_stream, zend_off_t offset,
 		if (stream->ops->seek && (stream->flags & PTHREADS_STREAM_FLAG_NO_SEEK) == 0) {
 			int ret;
 
-			if (stream->writefilters.head) {
+			if (pthreads_chain_has_head(pthreads_stream_get_writefilters(threaded_stream))) {
 				_pthreads_stream_flush(threaded_stream, 0);
 			}
 
@@ -1728,7 +1761,7 @@ size_t _pthreads_stream_passthru(pthreads_stream_t * threaded_stream) {
 	size_t b;
 
 	if(stream_lock(threaded_stream)) {
-		if (pthreads_stream_mmap_possible(PTHREADS_FETCH_STREAMS_STREAM(threaded_stream), threaded_stream)) {
+		if (pthreads_stream_mmap_possible(threaded_stream)) {
 			char *p;
 			size_t mapped;
 
@@ -1871,7 +1904,7 @@ int _pthreads_stream_copy_to_stream_ex(pthreads_stream_t *threaded_src, pthreads
 	}
 
 	if(pthreads_streams_aquire_double_lock(threaded_src, threaded_dest)) {
-		if (pthreads_stream_mmap_possible(PTHREADS_FETCH_STREAMS_STREAM(threaded_src), threaded_src)) {
+		if (pthreads_stream_mmap_possible(threaded_src)) {
 			char *p;
 			size_t mapped;
 

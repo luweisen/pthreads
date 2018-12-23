@@ -369,12 +369,6 @@ int pthreads_compare_objects(PTHREADS_COMPARE_PASSTHRU_D) {
 	pthreads_object_t *left = PTHREADS_FETCH_FROM(Z_OBJ_P(op1));
 	pthreads_object_t *right = PTHREADS_FETCH_FROM(Z_OBJ_P(op2));
 
-	/* comparing property tables is not useful or efficient for threaded objects */
-	/* in addition, it might be useful to know if two variables are infact the same physical threaded object */
-	if (left->monitor == right->monitor) {
-		return 0;
-	}
-
-	return 1;
+	return pthreads_object_compare(left, right);
 } /* }}} */
 #endif

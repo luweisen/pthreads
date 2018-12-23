@@ -51,6 +51,8 @@ typedef struct _pthreads_object_t pthreads_stream_filter_t;
 typedef struct _pthreads_object_t pthreads_stream_bucket_t;
 typedef struct _pthreads_object_t pthreads_stream_bucket_brigade_t;
 
+typedef struct _pthreads_object_t pthreads_stream_filter_chain_t;
+
 #define PTHREADS_FETCH_STREAMS_STREAM(object)  ((object)->store.streams->stream)
 #define PTHREADS_FETCH_STREAMS_CONTEXT(object) ((object)->store.streams->context)
 #define PTHREADS_FETCH_STREAMS_FILTER(object)  ((object)->store.streams->filter)
@@ -140,8 +142,6 @@ struct _pthreads_stream_wrapper	{
 struct _pthreads_stream  {
 	const pthreads_stream_ops *ops;
 	void *abstract;			/* convenience pointer for abstraction */
-
-	pthreads_stream_filter_chain readfilters, writefilters;
 
 	pthreads_stream_wrapper_t *wrapper; /* which wrapper was used to open the stream */
 	void *wrapperthis;		/* convenience pointer for a instance of a wrapper */
@@ -236,33 +236,124 @@ struct _pthreads_stream  {
 #define PTHREADS_STREAM_FLAG_NO_FCLOSE					0x80
 #define PTHREADS_STREAM_FLAG_WAS_WRITTEN				0x80000000
 
-#define PTHREADS_STREAM_STORAGE_KEY_CONTEXT				1
-#define PTHREADS_STREAM_STORAGE_KEY_INNERSTREAM			2
-#define PTHREADS_STREAM_STORAGE_KEY_PARENT				3
+#define PTHREADS_STREAM_STORAGE_KEY_STREAM_CONTEXT		1
+#define PTHREADS_STREAM_STORAGE_KEY_STREAM_INNERSTREAM	2
+#define PTHREADS_STREAM_STORAGE_KEY_STREAM_PARENT		3
+#define PTHREADS_STREAM_STORAGE_KEY_STREAM_READFILTERS	4
+#define PTHREADS_STREAM_STORAGE_KEY_STREAM_WRITEFILTERS	5
+
+#define PTHREADS_STREAM_STORAGE_KEY_CHAIN_HEAD			6
+#define PTHREADS_STREAM_STORAGE_KEY_CHAIN_TAIL			7
+#define PTHREADS_STREAM_STORAGE_KEY_CHAIN_STREAM		8
+
+#define PTHREADS_STREAM_STORAGE_KEY_FILTER_PREV			9
+#define PTHREADS_STREAM_STORAGE_KEY_FILTER_NEXT			10
+#define PTHREADS_STREAM_STORAGE_KEY_FILTER_CHAIN		11
+
 
 #define PTHREADS_GET_CTX_OPT(threaded_stream, wrapper, name, val) (pthreads_stream_get_context(threaded_stream) && NULL != (val = pthreads_stream_context_get_option(pthreads_stream_get_context(threaded_stream), wrapper, name)))
 
+/**
+ * Stream
+ */
+#define pthreads_stream_get_readfilters(threaded_stream) \
+	((pthreads_stream_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_READFILTERS))
 
+#define pthreads_stream_set_readfilters(threaded_stream, threaded_chain) \
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_READFILTERS, (threaded_chain)))
+
+#define pthreads_stream_get_writefilters(threaded_stream) \
+	((pthreads_stream_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_WRITEFILTERS))
+
+#define pthreads_stream_set_writefilters(threaded_stream, threaded_chain) \
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_WRITEFILTERS, (threaded_chain)))
+
+
+/**
+ * Context
+ */
 #define pthreads_stream_get_context(threaded_stream) \
-	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_CONTEXT))
+	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_CONTEXT))
 
 #define pthreads_stream_set_context(threaded_stream, threaded_context) \
-	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_CONTEXT, (threaded_context)))
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_CONTEXT, (threaded_context)))
 
 #define pthreads_stream_delete_context(threaded_stream) \
-	(pthreads_stream_delete_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_CONTEXT))
+	(pthreads_stream_delete_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_CONTEXT))
 
+/**
+ * Inner Stream
+ */
 #define pthreads_get_inner_stream(threaded_stream) \
-	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_INNERSTREAM))
+	((pthreads_stream_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_INNERSTREAM))
 
 #define pthreads_set_inner_stream(threaded_stream, threaded_innerstream) \
-	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_INNERSTREAM, (threaded_innerstream)))
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_INNERSTREAM, (threaded_innerstream)))
 
+/**
+ * Parent Stream
+ */
 #define pthreads_get_parent_stream(threaded_stream) \
-	((pthreads_stream_context_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_PARENT))
+	((pthreads_stream_t*) pthreads_stream_read_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_PARENT))
 
 #define pthreads_set_parent_stream(threaded_stream, threaded_parent_stream) \
-	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_PARENT, (threaded_parent_stream)))
+	(pthreads_stream_write_threaded_property((threaded_stream), PTHREADS_STREAM_STORAGE_KEY_STREAM_PARENT, (threaded_parent_stream)))
+
+/**
+ * Chain
+ */
+#define pthreads_chain_has_head(threaded_chain) \
+	(pthreads_stream_has_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_HEAD))
+
+#define pthreads_chain_get_head(threaded_chain) \
+	((pthreads_stream_filter_t*) pthreads_stream_read_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_HEAD))
+
+#define pthreads_chain_set_head(threaded_chain, threaded_filter) \
+	(pthreads_stream_write_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_HEAD, (threaded_filter)))
+
+#define pthreads_chain_has_tail(threaded_chain) \
+	(pthreads_stream_has_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_TAIL))
+
+#define pthreads_chain_get_tail(threaded_chain) \
+	((pthreads_stream_filter_t*) pthreads_stream_read_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_TAIL))
+
+#define pthreads_chain_set_tail(threaded_chain, threaded_filter) \
+	(pthreads_stream_write_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_TAIL, (threaded_filter)))
+
+#define pthreads_chain_num_elements(threaded_chain) \
+	(pthreads_stream_count_threaded_properties((threaded_chain)))
+
+#define pthreads_chain_get_stream(threaded_chain) \
+	((pthreads_stream_filter_t*) pthreads_stream_read_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_STREAM))
+
+#define pthreads_chain_set_stream(threaded_chain, threaded_stream) \
+	(pthreads_stream_write_threaded_property((threaded_chain), PTHREADS_STREAM_STORAGE_KEY_CHAIN_STREAM, (threaded_stream)))
+
+
+/**
+ * Filter
+ */
+#define pthreads_filter_get_next(threaded_filter) \
+	((pthreads_stream_filter_t*) pthreads_stream_read_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_NEXT))
+
+#define pthreads_filter_set_next(threaded_filter, threaded_next_filter) \
+	(pthreads_stream_write_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_NEXT, (threaded_next_filter)))
+
+#define pthreads_filter_get_prev(threaded_filter) \
+	((pthreads_stream_filter_t*) pthreads_stream_read_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_PREV))
+
+#define pthreads_filter_set_prev(threaded_filter, threaded_prev_filter) \
+	(pthreads_stream_write_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_PREV, (threaded_prev_filter)))
+
+#define pthreads_filter_has_chain(threaded_filter) \
+	(pthreads_stream_has_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_CHAIN))
+
+#define pthreads_filter_get_chain(threaded_filter) \
+	((pthreads_stream_filter_chain_t*) pthreads_stream_read_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_CHAIN))
+
+#define pthreads_filter_set_chain(threaded_filter, threaded_chain) \
+	(pthreads_stream_write_threaded_property((threaded_filter), PTHREADS_STREAM_STORAGE_KEY_FILTER_CHAIN, (threaded_chain)))
+
 
 void pthreads_init_streams();
 void pthreads_shutdown_streams();
@@ -283,6 +374,7 @@ pthreads_stream_wrapper_t *pthreads_stream_wrapper_new();
 pthreads_stream_context_t *pthreads_stream_context_new();
 
 int pthreads_stream_has_threaded_property(pthreads_object_t *threaded, int property);
+int pthreads_stream_count_threaded_properties(pthreads_object_t *threaded);
 pthreads_object_t *pthreads_stream_read_threaded_property(pthreads_object_t *threaded, int property);
 int pthreads_stream_write_threaded_property(pthreads_object_t *threaded, int property, pthreads_object_t *val);
 int pthreads_stream_delete_threaded_property(pthreads_object_t *threaded, int property);

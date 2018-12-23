@@ -52,11 +52,13 @@ ZEND_BEGIN_ARG_INFO_EX(filters_noargs, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(StreamBucketBrigade_append, 0, 0, 1)
-	ZEND_ARG_OBJ_INFO(0, bucket, Bucket, 0)
+	ZEND_ARG_OBJ_INFO(0, bucket, StreamBucket, 0)
+	ZEND_ARG_TYPE_INFO(0, separate, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(StreamBucketBrigade_prepend, 0, 0, 1)
-	ZEND_ARG_OBJ_INFO(0, bucket, Bucket, 0)
+	ZEND_ARG_OBJ_INFO(0, bucket, StreamBucket, 0)
+	ZEND_ARG_TYPE_INFO(0, separate, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(StreamFilter_remove, 0, 0, 0)
@@ -112,8 +114,9 @@ PHP_METHOD(StreamBucket, __construct) {
    Append bucket to brigade */
 PHP_METHOD(StreamBucketBrigade, append) {
 	zval *bucket = NULL;
+	zend_bool separate = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "O", &bucket, pthreads_stream_bucket_entry) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "O|b", &bucket, pthreads_stream_bucket_entry, &separate) != SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -124,7 +127,7 @@ PHP_METHOD(StreamBucketBrigade, append) {
 		return;
 	}
 
-	pthreads_streams_api_bucket_attach(getThis(), bucket, 1);
+	pthreads_streams_api_bucket_attach(getThis(), bucket, 1, separate);
 
 } /* }}} */
 
@@ -132,8 +135,9 @@ PHP_METHOD(StreamBucketBrigade, append) {
    Prepend bucket to brigade */
 PHP_METHOD(StreamBucketBrigade, prepend) {
 	zval *bucket = NULL;
+	zend_bool separate = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "O", &bucket, pthreads_stream_bucket_entry) != SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "O|b", &bucket, pthreads_stream_bucket_entry, &separate) != SUCCESS) {
 		RETURN_FALSE;
 	}
 
@@ -144,7 +148,7 @@ PHP_METHOD(StreamBucketBrigade, prepend) {
 		return;
 	}
 
-	pthreads_streams_api_bucket_attach(getThis(), bucket, 0);
+	pthreads_streams_api_bucket_attach(getThis(), bucket, 0, separate);
 
 } /* }}} */
 

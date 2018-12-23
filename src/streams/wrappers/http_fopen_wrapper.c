@@ -924,7 +924,7 @@ out:
 		strlcpy(stream->mode, mode, sizeof(stream->mode));
 
 		if (threaded_transfer_encoding) {
-			pthreads_stream_filter_append(&stream->readfilters, threaded_transfer_encoding);
+			pthreads_stream_filter_append(pthreads_stream_get_readfilters(threaded_stream), threaded_transfer_encoding);
 		}
 	} else {
 		if (threaded_transfer_encoding) {

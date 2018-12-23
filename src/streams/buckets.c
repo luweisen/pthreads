@@ -65,20 +65,49 @@ void pthreads_stream_bucket_free(pthreads_stream_bucket *bucket) {
 	free(bucket);
 }
 
+void pthreads_stream_bucket_sync_properties(pthreads_stream_bucket_t *threaded_bucket) {
+	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
+	zval *pzdata;
+	zval rv, obj;
+
+	ZVAL_NULL(&rv);
+
+	if(MONITOR_LOCK(threaded_bucket)) {
+		ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded_bucket));
+
+		pzdata = zend_read_property(NULL, &obj, PTHREADS_STREAM_BUCKET_PROP_DATA, strlen(PTHREADS_STREAM_BUCKET_PROP_DATA), 1, &rv);
+
+		if (Z_TYPE_P(pzdata) == IS_STRING) {
+			if(bucket->buflen != Z_STRLEN_P(pzdata)) {
+				bucket->buf = realloc(bucket->buf, Z_STRLEN_P(pzdata));
+				bucket->buflen = Z_STRLEN_P(pzdata);
+			}
+			memcpy(bucket->buf, Z_STRVAL_P(pzdata), bucket->buflen);
+		}
+		zval_ptr_dtor(pzdata);
+
+		MONITOR_UNLOCK(threaded_bucket);
+	}
+}
+
 pthreads_stream_bucket *pthreads_stream_bucket_fetch(pthreads_stream_bucket_t *threaded_bucket) {
 	pthreads_stream_bucket_unlink(threaded_bucket);
 	return PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 }
 
-void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket) {
+void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket, int separate) {
 	pthreads_stream_bucket_brigade *brigade = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_brigade);
 	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 	pthreads_stream_bucket *head = NULL;
 
 	if(pthreads_streams_aquire_double_lock(threaded_bucket, threaded_brigade)) {
-		if(bucket->brigade != NULL && threaded_brigade != bucket->brigade) {
-			// Error, bucket already prepended onto another brigade
-
+		if(bucket->brigade != NULL) {
+			if(separate) {
+				pthreads_stream_bucket_sync_properties(threaded_bucket);
+				pthreads_stream_bucket_prepend(threaded_brigade, pthreads_stream_bucket_new(bucket->buf, bucket->buflen), 0);
+			} else {
+				php_error_docref(NULL, E_WARNING, "StreamBucket already part of any StreamBucketBrigade");
+			}
 			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
 			return;
 		}
@@ -103,21 +132,20 @@ void pthreads_stream_bucket_prepend(pthreads_stream_bucket_brigade_t *threaded_b
 	}
 }
 
-void pthreads_stream_bucket_append(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket) {
+void pthreads_stream_bucket_append(pthreads_stream_bucket_brigade_t *threaded_brigade, pthreads_stream_bucket_t *threaded_bucket, int separate) {
 	pthreads_stream_bucket_brigade *brigade = PTHREADS_FETCH_STREAMS_BRIGADE(threaded_brigade);
 	pthreads_stream_bucket *bucket = PTHREADS_FETCH_STREAMS_BUCKET(threaded_bucket);
 	pthreads_stream_bucket *tail = NULL;
 	pthreads_stream_bucket_t *threaded_tail;
 
 	if(pthreads_streams_aquire_double_lock(threaded_bucket, threaded_brigade)) {
-
-		if(bucket->brigade != NULL && threaded_brigade != bucket->brigade) {
-			// Error, bucket already appended onto another brigade
-			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
-			return;
-		}
-
-		if(brigade->tail == threaded_bucket) {
+		if(bucket->brigade != NULL || brigade->tail == threaded_bucket) {
+			if(separate) {
+				pthreads_stream_bucket_sync_properties(threaded_bucket);
+				pthreads_stream_bucket_append(threaded_brigade, pthreads_stream_bucket_new(bucket->buf, bucket->buflen), 0);
+			} else {
+				php_error_docref(NULL, E_WARNING, "StreamBucket already part of any StreamBucketBrigade");
+			}
 			pthreads_streams_release_double_lock(threaded_bucket, threaded_brigade);
 			return;
 		}
@@ -167,7 +195,14 @@ void pthreads_stream_bucket_unlink(pthreads_stream_bucket_t *threaded_bucket) {
 }
 
 void pthreads_stream_bucket_destroy(pthreads_stream_bucket_t *threaded_bucket) {
+	zval obj;
+	ZVAL_OBJ(&obj, PTHREADS_STD_P(threaded_bucket));
+
+	zend_unset_property(pthreads_volatile_entry, &obj, PTHREADS_STREAM_BUCKET_PROP_DATA, strlen(PTHREADS_STREAM_BUCKET_PROP_DATA));
+	zend_unset_property(pthreads_volatile_entry, &obj, PTHREADS_STREAM_BUCKET_PROP_DATALEN, strlen(PTHREADS_STREAM_BUCKET_PROP_DATALEN));
+
 	pthreads_stream_bucket_unlink(threaded_bucket);
+
 	pthreads_ptr_dtor(threaded_bucket);
 }
 

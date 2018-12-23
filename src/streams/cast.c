@@ -233,7 +233,7 @@ int _pthreads_stream_cast(pthreads_stream_t *threaded_stream, int castas, void *
 			 * first, to avoid doubling up the layers of stdio with an fopencookie */
 			if (pthreads_stream_is(threaded_stream, PTHREADS_STREAM_IS_STDIO) &&
 				stream->ops->cast &&
-				!pthreads_stream_is_filtered(stream) &&
+				!pthreads_stream_is_filtered(threaded_stream) &&
 				stream->ops->cast(threaded_stream, castas, ret) == SUCCESS
 			) {
 				goto exit_success;
@@ -276,7 +276,7 @@ int _pthreads_stream_cast(pthreads_stream_t *threaded_stream, int castas, void *
 			return FAILURE;
 #endif
 
-			if (!pthreads_stream_is_filtered(stream) && stream->ops->cast && stream->ops->cast(threaded_stream, castas, NULL) == SUCCESS) {
+			if (!pthreads_stream_is_filtered(threaded_stream) && stream->ops->cast && stream->ops->cast(threaded_stream, castas, NULL) == SUCCESS) {
 				if (FAILURE == stream->ops->cast(threaded_stream, castas, ret)) {
 					stream_unlock(threaded_stream);
 					return FAILURE;
@@ -312,7 +312,7 @@ int _pthreads_stream_cast(pthreads_stream_t *threaded_stream, int castas, void *
 			}
 		}
 
-		if (pthreads_stream_is_filtered(stream)) {
+		if (pthreads_stream_is_filtered(threaded_stream)) {
 			stream_unlock(threaded_stream);
 			php_error_docref(NULL, E_WARNING, "cannot cast a filtered stream on this system");
 			return FAILURE;

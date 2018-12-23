@@ -30,6 +30,9 @@
 pthreads_object_t* pthreads_object_init(zend_class_entry *ce); /* }}} */
 
 /* {{{ */
+int pthreads_object_compare(pthreads_object_t* left, pthreads_object_t *right); /* }}} */
+
+/* {{{ */
 void pthreads_ptr_dtor(pthreads_object_t* threaded);
 void pthreads_add_ref(pthreads_object_t* threaded);
 void pthreads_del_ref(pthreads_object_t* threaded);

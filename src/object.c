@@ -34,6 +34,10 @@
 #	include <src/prepare.h>
 #endif
 
+#ifndef HAVE_PTHREADS_STREAMS_INTERNAL_H
+#	include <src/streams/internal.h>
+#endif
+
 /* {{{ */
 extern zend_module_entry pthreads_module_entry; /* }}} */
 
@@ -94,6 +98,18 @@ pthreads_object_t* pthreads_object_init(zend_class_entry *ce) {
 	object_init_ex(&object, ce);
 
 	return PTHREADS_FETCH_FROM(Z_OBJ(object));
+} /* }}} */
+
+
+/* {{{ */
+int pthreads_object_compare(pthreads_object_t* left, pthreads_object_t *right) {
+	/* comparing property tables is not useful or efficient for threaded objects */
+	/* in addition, it might be useful to know if two variables are infact the same physical threaded object */
+	if (left->monitor == right->monitor) {
+		return 0;
+	}
+
+	return 1;
 } /* }}} */
 
 /* {{{ */
@@ -348,11 +364,14 @@ int pthreads_connect(pthreads_object_t* source, pthreads_object_t* destination) 
 		pthreads_ident_t destCreator = destination->creator;
 
 		if (PTHREADS_IS_NOT_CONNECTION(destination)) {
-			if(PTHREADS_IS_STREAMS(destination)) {
+
 #if PTHREADS_STREAM_DEBUG
 	printf("connecting stream object [source] std(%p) threaded(%p) type(%s) thread(%i) \n", PTHREADS_STD_P(source), source, pthreads_get_object_name(source), pthreads_self());
 	printf("connecting stream object [destination] std(%p) threaded(%p) type(%s) thread(%i) \n", PTHREADS_STD_P(destination), destination, pthreads_get_object_name(source), pthreads_self());
 #endif
+
+			if(PTHREADS_IS_STREAMS(destination)) {
+
 				if(PTHREADS_IS_STREAM_CONTEXT(destination)) {
 					pthreads_stream_context_free(PTHREADS_FETCH_STREAMS_CONTEXT(destination));
 				} else if(PTHREADS_IS_STREAM_WRAPPER(destination)) {
@@ -468,7 +487,7 @@ void pthreads_base_free(zend_object *object) {
 	if (PTHREADS_IS_NOT_CONNECTION(base)) {
 		if(PTHREADS_IS_STREAMS(base)) {
 #if PTHREADS_STREAM_DEBUG
-	printf("freeing stream object std(%p) threaded(%p) type(%s) thread(%i) \n", object, base, pthreads_get_object_name(base), pthreads_self());
+	printf("freeing stream object std(%p) threaded(%p) type(%s) thread(%i) refcount(%i) \n", object, base, pthreads_get_object_name(base), pthreads_self(), pthreads_refcount(base));
 #endif
 			if(PTHREADS_IS_STREAM(base)) {
 				pthreads_stream * stream = PTHREADS_FETCH_STREAMS_STREAM(base);
@@ -480,6 +499,9 @@ void pthreads_base_free(zend_object *object) {
 			} else if(PTHREADS_IS_STREAM_CONTEXT(base) && PTHREADS_FETCH_STREAMS_CONTEXT(base)) {
 				pthreads_stream_context_free(PTHREADS_FETCH_STREAMS_CONTEXT(base));
 			} else if(PTHREADS_IS_STREAM_FILTER(base) && PTHREADS_FETCH_STREAMS_FILTER(base)) {
+				if(pthreads_stream_filter_is_integrated(base)) {
+					_pthreads_stream_filter_remove(base, 0);
+				}
 				pthreads_stream_filter_free(PTHREADS_FETCH_STREAMS_FILTER(base), base);
 			} else if(PTHREADS_IS_STREAM_BUCKET(base) && PTHREADS_FETCH_STREAMS_BUCKET(base)) {
 				pthreads_stream_bucket_free(PTHREADS_FETCH_STREAMS_BUCKET(base));
