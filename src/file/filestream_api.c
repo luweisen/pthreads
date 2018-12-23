@@ -43,9 +43,14 @@ void pthreads_streams_api_filestream_close(zval *object, zval *return_value) {
 	pthreads_stream_t *threaded_stream = PTHREADS_FETCH_FROM(Z_OBJ_P(object));
 	pthreads_stream *stream = PTHREADS_FETCH_STREAMS_STREAM(threaded_stream);
 
+	if (PTHREADS_IS_INVALID_STREAM(stream)) {
+		php_error_docref(NULL, E_WARNING, "%s was already closed", ZSTR_VAL(Z_OBJCE_P(object)->name));
+		RETURN_FALSE;
+	}
+
 	if ((stream->flags & PTHREADS_STREAM_FLAG_NO_FCLOSE) != 0) {
 		php_error_docref(NULL, E_WARNING, "%s is not a valid stream", ZSTR_VAL(Z_OBJCE_P(object)->name));
-		RETURN_NULL();
+		RETURN_FALSE;
 	}
 	int ret = pthreads_stream_close(threaded_stream, PTHREADS_STREAM_FREE_CLOSE);
 
